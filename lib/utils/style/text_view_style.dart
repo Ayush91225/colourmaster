@@ -1,0 +1,11 @@
+const double textLabelFontSize_10=10;
+const double textLabelFontSize_12=12;
+const double textLabelFontSize_14=14;
+const double textLabelFontSize_16=16;
+const double textLabelFontSize_18=18;
+const double textLabelFontSize_20=20;
+const double textLabelFontSize_22=22;
+const double textLabelFontSize_24=24;
+const double textLabelFontSize_26=26;
+const double textLabelFontSize_28=28;
+const double textLabelFontSize_30=30;

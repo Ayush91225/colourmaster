@@ -1,0 +1,2 @@
+/Users/zeeid/Documents/ProjectDev/FlutterDev/painterpointflutter/PainterPointFlutter/android/app/.cxx/RelWithDebInfo/j36kv151/arm64-v8a/CMakeFiles/edit_cache.dir
+/Users/zeeid/Documents/ProjectDev/FlutterDev/painterpointflutter/PainterPointFlutter/android/app/.cxx/RelWithDebInfo/j36kv151/arm64-v8a/CMakeFiles/rebuild_cache.dir

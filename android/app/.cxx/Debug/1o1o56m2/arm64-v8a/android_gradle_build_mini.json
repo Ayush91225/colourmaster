@@ -1,0 +1,20 @@
+{
+  "buildFiles": [
+    "/Users/zeeid/Documents/FlutterWorkspace/sdk/flutter/packages/flutter_tools/gradle/src/main/groovy/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/Users/zeeid/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+      "-C",
+      "/Users/zeeid/Documents/ProjectDev/FlutterDev/painterpointflutter/PainterPointFlutter/android/app/.cxx/Debug/1o1o56m2/arm64-v8a",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/Users/zeeid/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+    "-C",
+    "/Users/zeeid/Documents/ProjectDev/FlutterDev/painterpointflutter/PainterPointFlutter/android/app/.cxx/Debug/1o1o56m2/arm64-v8a",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {}
+}

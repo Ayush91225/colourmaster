@@ -1,0 +1,28 @@
+{
+  "buildFiles": [
+    "/Users/zeeid/Documents/FlutterWorkspace/sdk/flutter/packages/flutter_tools/gradle/src/main/groovy/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/Users/zeeid/Library/Android/sdk/cmake/3.18.1/bin/ninja",
+      "-C",
+      "/Users/zeeid/Documents/ProjectDev/FlutterDev/painterpointflutter/PainterPointFlutter/android/app/.cxx/Debug/666f2a3c/x86_64",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/Users/zeeid/Library/Android/sdk/cmake/3.18.1/bin/ninja",
+    "-C",
+    "/Users/zeeid/Documents/ProjectDev/FlutterDev/painterpointflutter/PainterPointFlutter/android/app/.cxx/Debug/666f2a3c/x86_64",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {},
+  "toolchains": {
+    "toolchain": {
+      "cCompilerExecutable": "/Users/zeeid/Library/Android/sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang.lld",
+      "cppCompilerExecutable": "/Users/zeeid/Library/Android/sdk/ndk/26.3.11579264/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang++.lld"
+    }
+  },
+  "cFileExtensions": [],
+  "cppFileExtensions": []
+}
