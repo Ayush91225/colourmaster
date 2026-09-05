@@ -1,8 +1,6 @@
-import 'package:colourmaster/main_screen.dart';
 import 'package:colourmaster/utils/premium_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -13,172 +11,211 @@ import 'utils/utilsMethods.dart';
 
 class PremiumSplashScreen extends StatefulWidget {
   const PremiumSplashScreen({super.key});
-
   @override
-  State<PremiumSplashScreen> createState() => _PremiumSplashScreenState();
+  State<PremiumSplashScreen> createState() => _State();
 }
 
-class _PremiumSplashScreenState extends State<PremiumSplashScreen>
-    with TickerProviderStateMixin {
-  late SharedPreferences sharedPreferences;
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-  late Animation<double> _scaleAnimation;
+class _State extends State<PremiumSplashScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _fade;
+  late Animation<double> _scale;
+  late Animation<double> _taglineFade;
+  late Animation<double> _loaderFade;
 
   @override
   void initState() {
     super.initState();
-    _setupAnimations();
-    initializePref();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-  }
-
-  void _setupAnimations() {
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 2000),
-      vsync: this,
-    );
-
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+      systemNavigationBarColor: AppTheme.black,
     ));
 
-    _scaleAnimation = Tween<double>(
-      begin: 0.8,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: const Interval(0.2, 0.8, curve: Curves.elasticOut),
-    ));
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1400));
 
-    _animationController.forward();
+    _fade = CurvedAnimation(
+        parent: _ctrl,
+        curve: const Interval(0.0, 0.6, curve: Curves.easeOut));
+
+    _scale = Tween(begin: 0.8, end: 1.0).animate(
+        CurvedAnimation(
+            parent: _ctrl,
+            curve: const Interval(0.0, 0.6, curve: Curves.easeOutBack)));
+
+    _taglineFade = CurvedAnimation(
+        parent: _ctrl,
+        curve: const Interval(0.4, 0.8, curve: Curves.easeOut));
+
+    _loaderFade = CurvedAnimation(
+        parent: _ctrl,
+        curve: const Interval(0.7, 1.0, curve: Curves.easeOut));
+
+    _ctrl.forward();
+    _navigate();
   }
 
-  Future initializePref() async {
-    sharedPreferences = await SharedPreferences.getInstance();
-    await Future.delayed(const Duration(seconds: 3));
-    checkLoginStatus(context);
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual,
-        overlays: SystemUiOverlay.values);
-    super.dispose();
-  }
-
-  checkLoginStatus(BuildContext context) async {
-    if (sharedPreferences.getBool(LOGIN_STATUS) == false ||
-        sharedPreferences.getBool(LOGIN_STATUS) == null) {
+  Future<void> _navigate() async {
+    final prefs = await SharedPreferences.getInstance();
+    await Future.delayed(const Duration(milliseconds: 2400));
+    if (!mounted) return;
+    if (prefs.getBool(LOGIN_STATUS) != true) {
       Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (BuildContext context) => const PremiumLoginScreen()),
-          (Route<dynamic> route) => false);
+          MaterialPageRoute(builder: (_) => const PremiumLoginScreen()),
+          (_) => false);
     } else {
-      check().then((internet) async {
-        final userProvider = Provider.of<UserProvider>(context, listen: false);
-        userProvider.checkLogin(context, sharedPreferences.getString(TOKEN)) ??
-            "";
+      check().then((_) {
+        if (!mounted) return;
+        Provider.of<UserProvider>(context, listen: false)
+            .checkLogin(context, prefs.getString(TOKEN));
       });
     }
   }
 
   @override
+  void dispose() {
+    _ctrl.dispose();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual,
+        overlays: SystemUiOverlay.values);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final sw = MediaQuery.of(context).size.width;
+    final s  = (sw / 390).clamp(0.8, 1.3);
+
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Logo with premium styling
-              AnimatedBuilder(
-                animation: _animationController,
-                builder: (context, child) {
-                  return Transform.scale(
-                    scale: _scaleAnimation.value,
-                    child: Opacity(
-                      opacity: _fadeAnimation.value,
-                      child: Image.asset(
-                        'assets/images/logo.png',
-                        width: 140,
-                        height: 140,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  );
-                },
-              ),
-              
-              const SizedBox(height: 50),
-              
-              // App name with premium typography
-              Text(
-                'Colour Master',
-                style: PremiumTheme.textTheme.displayMedium?.copyWith(
-                  color: PremiumTheme.textPrimary,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.5,
-                ),
-              ).animate().fadeIn(delay: 800.ms).slideY(begin: 0.2),
-              
-              const SizedBox(height: 12),
-              
-              // Tagline with subtle styling
-              Text(
-                'Premium Rewards Experience',
-                style: PremiumTheme.textTheme.titleMedium?.copyWith(
-                  color: PremiumTheme.textSecondary,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 0.3,
-                ),
-              ).animate().fadeIn(delay: 1200.ms).slideY(begin: 0.2),
-              
-              const SizedBox(height: 100),
-              
-              // Premium loading indicator
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(25),
-                  boxShadow: [
-                    BoxShadow(
-                      color: PremiumTheme.primaryColor.withOpacity(0.1),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: CircularProgressIndicator(
-                    strokeWidth: 3,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      PremiumTheme.primaryColor,
+      backgroundColor: AppTheme.black,
+      body: Stack(
+        children: [
+          // Subtle orange radial glow behind logo
+          Positioned.fill(
+            child: FadeTransition(
+              opacity: _fade,
+              child: Center(
+                child: Container(
+                  width: 260 * s,
+                  height: 260 * s,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        AppTheme.orange.withOpacity(0.07),
+                        Colors.transparent,
+                      ],
                     ),
                   ),
                 ),
-              ).animate().fadeIn(delay: 1600.ms).scale(delay: 1600.ms),
-              
-              const SizedBox(height: 24),
-              
-              Text(
-                'Loading your experience...',
-                style: PremiumTheme.textTheme.bodyMedium?.copyWith(
-                  color: PremiumTheme.textTertiary,
-                  fontWeight: FontWeight.w500,
-                ),
-              ).animate().fadeIn(delay: 1800.ms),
-            ],
+              ),
+            ),
           ),
-        ),
+
+          // Main content
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Logo
+                FadeTransition(
+                  opacity: _fade,
+                  child: ScaleTransition(
+                    scale: _scale,
+                    child: Container(
+                      width: 88 * s,
+                      height: 88 * s,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppTheme.black2,
+                        border: Border.all(
+                            color: AppTheme.orange.withOpacity(0.35),
+                            width: 1.5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.orange.withOpacity(0.12),
+                            blurRadius: 40,
+                            spreadRadius: 8,
+                          ),
+                        ],
+                      ),
+                      padding: EdgeInsets.all(20 * s),
+                      child: Image.asset('assets/images/logo.png',
+                          fit: BoxFit.contain),
+                    ),
+                  ),
+                ),
+
+                SizedBox(height: 28 * s),
+
+                // App name
+                FadeTransition(
+                  opacity: _fade,
+                  child: Text(
+                    'COLOUR MASTER',
+                    style: TextStyle(
+                      fontSize: 17 * s,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.white,
+                      letterSpacing: 5,
+                    ),
+                  ),
+                ),
+
+                SizedBox(height: 10 * s),
+
+                // Orange divider line
+                FadeTransition(
+                  opacity: _taglineFade,
+                  child: Container(
+                    width: 32 * s,
+                    height: 1.5,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(colors: [
+                        Colors.transparent,
+                        AppTheme.orange,
+                        Colors.transparent,
+                      ]),
+                    ),
+                  ),
+                ),
+
+                SizedBox(height: 10 * s),
+
+                // Tagline
+                FadeTransition(
+                  opacity: _taglineFade,
+                  child: Text(
+                    'REWARDS & LOYALTY',
+                    style: TextStyle(
+                      fontSize: 10 * s,
+                      fontWeight: FontWeight.w500,
+                      color: AppTheme.white.withOpacity(0.35),
+                      letterSpacing: 3.5,
+                    ),
+                  ),
+                ),
+
+                SizedBox(height: 72 * s),
+
+                // Loader
+                FadeTransition(
+                  opacity: _loaderFade,
+                  child: SizedBox(
+                    width: 18 * s,
+                    height: 18 * s,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 1.5,
+                      valueColor: AlwaysStoppedAnimation(
+                          AppTheme.orange.withOpacity(0.5)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

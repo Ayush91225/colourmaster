@@ -1,734 +1,545 @@
-import 'dart:async';
-
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:colourmaster/main_screen.dart';
 import 'package:colourmaster/ui/product_qr_redeem_history_screen.dart';
 import 'package:colourmaster/ui/profile_screen.dart';
-import 'package:colourmaster/ui/widget/premium_cards.dart';
 import 'package:colourmaster/ui/widget/premium_shimmer.dart';
 import 'package:colourmaster/utils/premium_theme.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../provider/user_provider.dart';
+import '../utils/constants.dart';
 import '../utils/sharedPreferenceKey.dart';
 import '../utils/utilsMethods.dart';
-import '../utils/constants.dart';
 import 'cash_redeem_history_screen.dart';
+import 'full_screen_image.dart';
 import 'product_redeem_points_screen.dart';
 
 class PremiumHomeScreen extends StatefulWidget {
-  const PremiumHomeScreen({super.key});
-  
+  final VoidCallback? onMenuTap;
+  const PremiumHomeScreen({super.key, this.onMenuTap});
   @override
-  State<PremiumHomeScreen> createState() => _PremiumHomeScreenState();
+  State<PremiumHomeScreen> createState() => _State();
 }
 
-class _PremiumHomeScreenState extends State<PremiumHomeScreen> {
-  SharedPreferences? sharedPreferences;
-  var userToken = "";
-  var userPhoto = "";
-  bool isLoading = true;
-  int currentSliderIndex = 0;
+class _State extends State<PremiumHomeScreen> {
+  SharedPreferences? _prefs;
+  String _token = '', _photo = '', _name = '', _city = '';
+  bool _loading = true;
+  int _slide = 0;
 
   @override
   void initState() {
     super.initState();
-    initializePreference().whenComplete(() {
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
-      check().then((internet) async {
-        if (internet) {
-          await userProvider.fetchDashboard(context, userToken);
-          setState(() {
-            isLoading = false;
-          });
-        } else {
-          showWarningToast("No network connection");
-          setState(() {
-            isLoading = false;
-          });
-        }
-      });
-    });
+    _init();
   }
 
-  Future<void> initializePreference() async {
-    sharedPreferences = await SharedPreferences.getInstance();
+  Future<void> _init() async {
+    _prefs = await SharedPreferences.getInstance();
     setState(() {
-      userToken = sharedPreferences!.getString(TOKEN)!;
-      userPhoto = sharedPreferences!.getString(USERPHOTO) ?? "";
+      _token = _prefs!.getString(TOKEN) ?? '';
+      _photo = _prefs!.getString(USERPHOTO) ?? '';
+      _name  = _prefs!.getString(FULLNAME) ?? 'User';
+      _city  = _prefs!.getString('user_city') ?? 'India';
     });
+    final p = Provider.of<UserProvider>(context, listen: false);
+    if (await check()) {
+      await p.fetchDashboard(context, _token);
+    } else {
+      showWarningToast('No network connection');
+    }
+    if (mounted) setState(() => _loading = false);
   }
 
   @override
   Widget build(BuildContext context) {
+    // Base design width = 390. Scale everything relative to actual width.
+    final sw = MediaQuery.of(context).size.width;
+    final s = (sw / 390).clamp(0.8, 1.3);
+
     return Consumer<UserProvider>(
-      builder: (context, UserProvider userProvider, child) {
-        return Scaffold(
-          backgroundColor: PremiumTheme.backgroundColor,
-          body: RefreshIndicator(
-            onRefresh: () async {
-              setState(() {
-                isLoading = true;
-              });
-              await userProvider.fetchDashboard(context, userToken);
-              setState(() {
-                isLoading = false;
-              });
-            },
-            color: PremiumTheme.primaryColor,
-            child: CustomScrollView(
-              slivers: [
-                _buildAppBar(),
-                SliverPadding(
-                  padding: const EdgeInsets.all(24),
-                  sliver: SliverList(
-                    delegate: SliverChildListDelegate([
-                      _buildProfileSection(userProvider),
-                      const SizedBox(height: 24),
-                      _buildBalanceCards(userProvider),
-                      const SizedBox(height: 24),
-                      _buildLastTransaction(userProvider),
-                      const SizedBox(height: 24),
-                      _buildSliders(userProvider),
-                      const SizedBox(height: 24),
-                      _buildQuickActions(),
-                      const SizedBox(height: 100),
-                    ]),
-                  ),
+      builder: (_, provider, __) => Scaffold(
+        backgroundColor: AppTheme.black,
+        body: RefreshIndicator(
+          color: AppTheme.orange,
+          backgroundColor: AppTheme.black2,
+          onRefresh: () async {
+            setState(() => _loading = true);
+            await provider.fetchDashboard(context, _token);
+            setState(() => _loading = false);
+          },
+          child: CustomScrollView(
+            slivers: [
+              _header(provider, s),
+              SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _heroPoints(provider, s),
+                    _statsRow(provider, s),
+                    _lastTx(provider, s),
+                    _sliders(provider, s),
+                    _quickActions(s),
+                    SizedBox(height: 100 * s),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
-  Widget _buildAppBar() {
+  // ── Header ───────────────────────────────────────────────────────────────────
+  Widget _header(UserProvider provider, double s) {
+    final avatarSize = 38 * s;
     return SliverAppBar(
-      expandedHeight: 60,
-      floating: false,
       pinned: true,
-      backgroundColor: Colors.white,
+      floating: false,
+      backgroundColor: AppTheme.black,
       elevation: 0,
-      leading: Container(),
-      flexibleSpace: FlexibleSpaceBar(
-        centerTitle: true,
-        title: Text(
-          'Colour Master',
-          style: PremiumTheme.textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w700,
-            color: PremiumTheme.textPrimary,
+      toolbarHeight: 60 * s,
+      leading: const SizedBox(),
+      flexibleSpace: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16 * s),
+          child: Row(
+            children: [
+              // Hamburger
+              GestureDetector(
+                onTap: widget.onMenuTap,
+                child: Container(
+                  width: avatarSize, height: avatarSize,
+                  decoration: BoxDecoration(
+                    color: AppTheme.black3,
+                    borderRadius: BorderRadius.circular(9 * s),
+                    border: Border.all(color: AppTheme.black5),
+                  ),
+                  child: Icon(Icons.menu_rounded,
+                      size: 18 * s, color: AppTheme.white),
+                ),
+              ),
+              SizedBox(width: 12 * s),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('Good ${_timeGreeting()}',
+                        style: TextStyle(
+                            fontSize: 11 * s,
+                            color: AppTheme.white.withOpacity(0.35),
+                            fontWeight: FontWeight.w400)),
+                    Text(_name,
+                        style: TextStyle(
+                            fontSize: 15 * s,
+                            color: AppTheme.white,
+                            fontWeight: FontWeight.w700),
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ],
+                ),
+              ),
+              // Avatar
+              GestureDetector(
+                onTap: () => Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const ProfileScreen())),
+                child: Container(
+                  width: avatarSize, height: avatarSize,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppTheme.black3,
+                    border: Border.all(
+                        color: AppTheme.orange.withOpacity(0.5), width: 1.5),
+                  ),
+                  child: ClipOval(
+                    child: _photo.isNotEmpty && _photo != 'null'
+                        ? CachedNetworkImage(
+                            imageUrl: _photo,
+                            fit: BoxFit.cover,
+                            errorWidget: (_, __, ___) => _avatarIcon(s))
+                        : _avatarIcon(s),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ).animate().fadeIn(delay: 200.ms),
+        ),
+      ),
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(1),
+        child: Container(
+            height: 1, color: AppTheme.black5.withOpacity(0.5)),
       ),
     );
   }
 
-  Widget _buildProfileSection(UserProvider userProvider) {
-    if (isLoading) {
-      return PremiumShimmer.profileHeader();
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: PremiumTheme.primaryColor.withOpacity(0.1),
-            ),
-            child: ClipOval(
-              child: userPhoto.isNotEmpty && userPhoto != "null"
-                  ? CachedNetworkImage(
-                      imageUrl: userPhoto,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Icon(
-                        Icons.person_rounded,
-                        color: PremiumTheme.primaryColor,
-                        size: 28,
-                      ),
-                      errorWidget: (context, url, error) => Icon(
-                        Icons.person_rounded,
-                        color: PremiumTheme.primaryColor,
-                        size: 28,
-                      ),
-                    )
-                  : Icon(
-                      Icons.person_rounded,
-                      color: PremiumTheme.primaryColor,
-                      size: 28,
-                    ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Welcome back',
-                  style: PremiumTheme.textTheme.bodyMedium?.copyWith(
-                    color: PremiumTheme.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  sharedPreferences?.getString(FULLNAME) ?? 'User',
-                  style: PremiumTheme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const ProfileScreen()),
-              );
-            },
-            icon: Icon(
-              Icons.settings_rounded,
-              color: PremiumTheme.textSecondary,
-              size: 20,
-            ),
-          ),
-        ],
-      ),
-    ).animate().fadeIn(duration: 400.ms);
+  String _timeGreeting() {
+    final h = DateTime.now().hour;
+    if (h < 12) return 'morning';
+    if (h < 17) return 'afternoon';
+    return 'evening';
   }
 
-  Widget _buildBalanceCards(UserProvider userProvider) {
-    if (isLoading) {
-      return Column(
-        children: [
-          Row(
-            children: [
-              Expanded(child: PremiumShimmer.dashboardCard()),
-              const SizedBox(width: 12),
-              Expanded(child: PremiumShimmer.dashboardCard()),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(child: PremiumShimmer.dashboardCard()),
-              const SizedBox(width: 12),
-              Expanded(child: PremiumShimmer.dashboardCard()),
-            ],
-          ),
-        ],
+  Widget _avatarIcon(double s) =>
+      Icon(Icons.person_rounded, color: AppTheme.white30, size: 20 * s);
+
+  // ── Hero points card ──────────────────────────────────────────────────────────
+  Widget _heroPoints(UserProvider p, double s) {
+    final pad = 16 * s;
+    if (_loading) {
+      return Padding(
+        padding: EdgeInsets.fromLTRB(pad, 20 * s, pad, 0),
+        child: PremiumShimmer.card(height: 130 * s),
       );
     }
+    final d = p.dashboardData?.data;
+    final balance = d?.user?.balance ?? 0;
+    final lifetime = d?.lifeTimBalance ?? 0;
 
-    if (userProvider.dashboardData?.data == null) {
-      return const SizedBox();
-    }
-
-    final data = userProvider.dashboardData!.data!;
-    
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
-                      blurRadius: 20,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${data.user?.balance ?? 0}',
-                      style: PremiumTheme.textTheme.headlineLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: PremiumTheme.primaryColor,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Available Points',
-                      style: PremiumTheme.textTheme.bodyMedium?.copyWith(
-                        color: PremiumTheme.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
-                      blurRadius: 20,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${data.lifeTimBalance ?? 0}',
-                      style: PremiumTheme.textTheme.headlineLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: PremiumTheme.successColor,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Total Earned',
-                      style: PremiumTheme.textTheme.bodyMedium?.copyWith(
-                        color: PremiumTheme.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
+    return Padding(
+      padding: EdgeInsets.fromLTRB(pad, 20 * s, pad, 0),
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.all(20 * s),
+        decoration: BoxDecoration(
+          color: AppTheme.black2,
+          borderRadius: BorderRadius.circular(16 * s),
+          border: Border.all(color: AppTheme.black5),
         ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Container(
+              padding: EdgeInsets.symmetric(
+                  horizontal: 8 * s, vertical: 4 * s),
+              decoration: BoxDecoration(
+                color: AppTheme.orange.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(6 * s),
+                border: Border.all(
+                    color: AppTheme.orange.withOpacity(0.25)),
+              ),
+              child: Text('AVAILABLE POINTS',
+                  style: TextStyle(
+                      fontSize: 10 * s,
+                      color: AppTheme.orange,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.8)),
+            ),
+            const Spacer(),
+            GestureDetector(
+              onTap: () => Navigator.push(context,
+                  MaterialPageRoute(
+                      builder: (_) => const MainScreen(4, ''))),
               child: Container(
-                padding: const EdgeInsets.all(20),
+                padding: EdgeInsets.symmetric(
+                    horizontal: 12 * s, vertical: 6 * s),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
-                      blurRadius: 20,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+                  color: AppTheme.orange,
+                  borderRadius: BorderRadius.circular(8 * s),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${data.giftBalance ?? 0}',
-                      style: PremiumTheme.textTheme.headlineLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: PremiumTheme.accentColor,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Gift Available',
-                      style: PremiumTheme.textTheme.bodyMedium?.copyWith(
-                        color: PremiumTheme.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
+                child: Text('Redeem',
+                    style: TextStyle(
+                        fontSize: 12 * s,
+                        color: AppTheme.black,
+                        fontWeight: FontWeight.w700)),
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
-                      blurRadius: 20,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${data.giftLifetimeBalance ?? 0}',
-                      style: PremiumTheme.textTheme.headlineLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: PremiumTheme.infoColor,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Gift Lifetime',
-                      style: PremiumTheme.textTheme.bodyMedium?.copyWith(
-                        color: PremiumTheme.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
+          ]),
+          SizedBox(height: 14 * s),
+          Text('$balance',
+              style: TextStyle(
+                  fontSize: (42 * s).clamp(32, 52),
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.white,
+                  height: 1.0)),
+          SizedBox(height: 4 * s),
+          Text('$lifetime pts earned lifetime',
+              style: TextStyle(
+                  fontSize: 12 * s,
+                  color: AppTheme.white.withOpacity(0.35),
+                  fontWeight: FontWeight.w400)),
+        ]),
+      ),
     );
   }
 
-  Widget _buildLastTransaction(UserProvider userProvider) {
-    if (isLoading || userProvider.dashboardData?.data?.lastTransaction == null) {
-      return const SizedBox();
+  // ── Stats row ─────────────────────────────────────────────────────────────────
+  Widget _statsRow(UserProvider p, double s) {
+    final pad = 16 * s;
+    if (_loading) {
+      return Padding(
+        padding: EdgeInsets.fromLTRB(pad, 12 * s, pad, 0),
+        child: Row(children: [
+          Expanded(child: PremiumShimmer.card(height: 72 * s)),
+          SizedBox(width: 10 * s),
+          Expanded(child: PremiumShimmer.card(height: 72 * s)),
+        ]),
+      );
     }
+    final d = p.dashboardData?.data;
+    if (d == null) return const SizedBox();
 
-    final transaction = userProvider.dashboardData!.data!.lastTransaction!;
-    
-    return PremiumCard(
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: PremiumTheme.successColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              Icons.history_rounded,
-              color: PremiumTheme.successColor,
-              size: 24,
-            ),
+    return Padding(
+      padding: EdgeInsets.fromLTRB(pad, 12 * s, pad, 0),
+      child: Row(children: [
+        Expanded(child: _miniStat(
+            'Gift Balance', '${d.giftBalance ?? 0}',
+            Icons.card_giftcard_outlined, s)),
+        SizedBox(width: 10 * s),
+        Expanded(child: _miniStat(
+            'Gift Lifetime', '${d.giftLifetimeBalance ?? 0}',
+            Icons.star_outline_rounded, s)),
+      ]),
+    );
+  }
+
+  Widget _miniStat(String label, String value, IconData icon, double s) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+          horizontal: 14 * s, vertical: 12 * s),
+      decoration: BoxDecoration(
+        color: AppTheme.black2,
+        borderRadius: BorderRadius.circular(12 * s),
+        border: Border.all(color: AppTheme.black5),
+      ),
+      child: Row(children: [
+        Container(
+          width: 32 * s, height: 32 * s,
+          decoration: BoxDecoration(
+            color: AppTheme.black4,
+            borderRadius: BorderRadius.circular(8 * s),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
+          child: Icon(icon,
+              color: AppTheme.white.withOpacity(0.45), size: 15 * s),
+        ),
+        SizedBox(width: 10 * s),
+        Expanded(
+          child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Last Redeem',
-                  style: PremiumTheme.textTheme.bodyMedium?.copyWith(
-                    color: PremiumTheme.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${transaction.points} PTS • ${lastTransactionDateOnHome(transaction.createdAt)}',
-                  style: PremiumTheme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: PremiumTheme.primaryColor,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Text(
-              'Redeem',
-              style: PremiumTheme.textTheme.bodySmall?.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const MainScreen(4, "")),
-        );
-      },
-    ).animate().fadeIn(delay: 300.ms);
+                Text(value,
+                    style: TextStyle(
+                        fontSize: 16 * s,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.white)),
+                Text(label,
+                    style: TextStyle(
+                        fontSize: 10 * s,
+                        color: AppTheme.white.withOpacity(0.35),
+                        fontWeight: FontWeight.w400)),
+              ]),
+        ),
+      ]),
+    );
   }
 
-  Widget _buildSliders(UserProvider userProvider) {
-    if (isLoading) {
-      return PremiumShimmer.card(height: 200);
-    }
-
-    if (userProvider.dashboardData?.data?.sliders?.isEmpty ?? true) {
-      return const SizedBox();
-    }
-
-    final sliders = userProvider.dashboardData!.data!.sliders!;
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Featured',
-          style: PremiumTheme.textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w600,
+  // ── Last transaction ──────────────────────────────────────────────────────────
+  Widget _lastTx(UserProvider p, double s) {
+    final tx = p.dashboardData?.data?.lastTransaction;
+    if (_loading || tx == null) return const SizedBox();
+    final pad = 16 * s;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(pad, 12 * s, pad, 0),
+      child: GestureDetector(
+        onTap: () => Navigator.push(context,
+            MaterialPageRoute(builder: (_) => const MainScreen(4, ''))),
+        child: Container(
+          padding: EdgeInsets.symmetric(
+              horizontal: 14 * s, vertical: 12 * s),
+          decoration: BoxDecoration(
+            color: AppTheme.black2,
+            borderRadius: BorderRadius.circular(12 * s),
+            border: Border.all(color: AppTheme.black5),
           ),
+          child: Row(children: [
+            Container(
+              width: 34 * s, height: 34 * s,
+              decoration: BoxDecoration(
+                color: AppTheme.black4,
+                borderRadius: BorderRadius.circular(8 * s),
+              ),
+              child: Icon(Icons.history_rounded,
+                  color: AppTheme.white.withOpacity(0.45), size: 16 * s),
+            ),
+            SizedBox(width: 12 * s),
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Last Redeem',
+                        style: TextStyle(
+                            fontSize: 10 * s,
+                            color: AppTheme.white.withOpacity(0.35))),
+                    SizedBox(height: 2 * s),
+                    Text(
+                        '${tx.points} PTS  ·  ${lastTransactionDateOnHome(tx.createdAt)}',
+                        style: TextStyle(
+                            fontSize: 13 * s,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.white)),
+                  ]),
+            ),
+            Icon(Icons.chevron_right_rounded,
+                size: 18 * s, color: AppTheme.white30),
+          ]),
         ),
-        const SizedBox(height: 16),
+      ),
+    );
+  }
+
+  // ── Sliders ───────────────────────────────────────────────────────────────────
+  Widget _sliders(UserProvider p, double s) {
+    final pad = 16 * s;
+    final sliderH = (MediaQuery.of(context).size.width - pad * 2) * 0.42;
+
+    if (_loading) {
+      return Padding(
+        padding: EdgeInsets.fromLTRB(pad, 20 * s, pad, 0),
+        child: PremiumShimmer.card(height: sliderH),
+      );
+    }
+    final sliders = p.dashboardData?.data?.sliders;
+    if (sliders == null || sliders.isEmpty) return const SizedBox();
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(0, 20 * s, 0, 0),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(pad, 0, pad, 10 * s),
+          child: Text('Featured',
+              style: TextStyle(
+                  fontSize: 12 * s,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.white.withOpacity(0.4),
+                  letterSpacing: 0.5)),
+        ),
         CarouselSlider.builder(
           itemCount: sliders.length,
-          itemBuilder: (BuildContext context, int itemIndex, int pageViewIndex) =>
-              Container(
-            width: MediaQuery.of(context).size.width,
-            margin: const EdgeInsets.symmetric(horizontal: 4),
+          itemBuilder: (_, i, __) => GestureDetector(
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+                builder: (_) => FullScreenImage(
+                    imageUrl: sliders[i].image!,
+                    title: ''))),
+            child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: pad),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(14 * s),
               child: CachedNetworkImage(
-                imageUrl: sliders[itemIndex].image!,
+                imageUrl: sliders[i].image!,
                 fit: BoxFit.cover,
-                width: MediaQuery.of(context).size.width,
-                height: 200,
-                placeholder: (context, url) => PremiumShimmer.card(height: 200),
-                errorWidget: (context, url, error) => Container(
-                  color: Colors.grey.shade200,
-                  child: const Icon(Icons.image_not_supported),
+                width: double.infinity,
+                placeholder: (_, __) =>
+                    PremiumShimmer.card(height: sliderH),
+                errorWidget: (_, __, ___) => Container(
+                  color: AppTheme.black3,
+                  child: Icon(Icons.image_not_supported_outlined,
+                      color: AppTheme.white30, size: 28 * s),
                 ),
               ),
             ),
+          ),
           ),
           options: CarouselOptions(
-            onPageChanged: (index, reason) {
-              setState(() {
-                currentSliderIndex = index;
-              });
-            },
+            height: sliderH,
             viewportFraction: 1.0,
-            height: 200.0,
-            autoPlay: true,
-            aspectRatio: 16 / 9,
-            enableInfiniteScroll: true,
+            autoPlay: sliders.length > 1,
+            enableInfiniteScroll: sliders.length > 1,
+            onPageChanged: (i, _) => setState(() => _slide = i),
           ),
         ),
-        const SizedBox(height: 16),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: sliders.asMap().entries.map((entry) {
-            return Container(
-              width: 8.0,
-              height: 8.0,
-              margin: const EdgeInsets.symmetric(horizontal: 4.0),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: currentSliderIndex == entry.key
-                    ? PremiumTheme.primaryColor
-                    : Colors.grey,
-              ),
-            );
-          }).toList(),
-        ),
-      ],
-    ).animate().fadeIn(delay: 400.ms);
+        if (sliders.length > 1) ...[
+          SizedBox(height: 10 * s),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(sliders.length, (i) {
+              final active = i == _slide;
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: active ? 16 * s : 4 * s,
+                height: 4 * s,
+                margin: EdgeInsets.symmetric(horizontal: 2 * s),
+                decoration: BoxDecoration(
+                  color: active ? AppTheme.orange : AppTheme.black5,
+                  borderRadius: BorderRadius.circular(2 * s),
+                ),
+              );
+            }),
+          ),
+        ],
+      ]),
+    );
   }
 
-  Widget _buildQuickActions() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Quick Actions',
-          style: PremiumTheme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
+  // ── Quick actions ─────────────────────────────────────────────────────────────
+  Widget _quickActions(double s) {
+    final pad = 16 * s;
+    final items = [
+      _QA('Product\nHistory', Icons.inventory_2_outlined,
+          () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => const ProductQRRedeemHistoryScreen()))),
+      _QA('Cash\nRedeem', Icons.account_balance_outlined,
+          () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => const CashRedeemHistoryScreen()))),
+      _QA('Coupons', Icons.local_offer_outlined,
+          () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => const ProductRedeemPointScreen()))),
+      _QA('Support', Icons.support_agent_outlined,
+          () => openEmail(contactUSEmailAddress)),
+    ];
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(0, 20 * s, 0, 0),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(pad, 0, pad, 12 * s),
+          child: Text('Quick Actions',
+              style: TextStyle(
+                  fontSize: 12 * s,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.white.withOpacity(0.4),
+                  letterSpacing: 0.5)),
         ),
-        const SizedBox(height: 16),
-        GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 2,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 1.3,
-          children: [
-            GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ProductQRRedeemHistoryScreen(),
+        Row(
+          children: items.map((a) => Expanded(
+            child: GestureDetector(
+              onTap: a.onTap,
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 6 * s),
+                child: Column(children: [
+                  Container(
+                    width: 52 * s, height: 52 * s,
+                    decoration: BoxDecoration(
+                      color: AppTheme.black3,
+                      borderRadius: BorderRadius.circular(14 * s),
+                      border: Border.all(color: AppTheme.black5),
+                    ),
+                    child: Icon(a.icon,
+                        color: AppTheme.white.withOpacity(0.6),
+                        size: 22 * s),
                   ),
-                );
-              },
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
-                      blurRadius: 20,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.inventory_2_rounded,
-                      color: PremiumTheme.primaryColor,
-                      size: 28,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Product',
-                      style: PremiumTheme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
+                  SizedBox(height: 8 * s),
+                  Text(a.label,
+                      style: TextStyle(
+                          fontSize: 10 * s,
+                          fontWeight: FontWeight.w500,
+                          color: AppTheme.white.withOpacity(0.4),
+                          height: 1.4),
+                      textAlign: TextAlign.center),
+                ]),
               ),
             ),
-            GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const CashRedeemHistoryScreen(),
-                  ),
-                );
-              },
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
-                      blurRadius: 20,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.account_balance_rounded,
-                      color: PremiumTheme.successColor,
-                      size: 28,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Cash',
-                      style: PremiumTheme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ProductRedeemPointScreen(),
-                  ),
-                );
-              },
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
-                      blurRadius: 20,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.local_offer_rounded,
-                      color: PremiumTheme.accentColor,
-                      size: 28,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Coupon',
-                      style: PremiumTheme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            GestureDetector(
-              onTap: () => openEmail(contactUSEmailAddress),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
-                      blurRadius: 20,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.support_agent_rounded,
-                      color: PremiumTheme.infoColor,
-                      size: 28,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Support',
-                      style: PremiumTheme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
+          )).toList(),
         ),
-      ],
-    ).animate().fadeIn(delay: 500.ms);
+      ]),
+    );
   }
+}
+
+class _QA {
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+  const _QA(this.label, this.icon, this.onTap);
 }

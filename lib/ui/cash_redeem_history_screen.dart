@@ -1,497 +1,410 @@
-// ignore_for_file: depend_on_referenced_packages
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 
 import '../models/Transaction.dart';
-import '../models/userModel/RedeemHistoryData.dart';
 import '../provider/user_provider.dart';
 import '../utils/sharedPreferenceKey.dart';
 import '../utils/premium_theme.dart';
 import '../utils/utilsMethods.dart';
-import 'widget/premium_cards.dart';
 import 'widget/premium_shimmer.dart';
-import 'widget/side_bar.dart';
+import 'widget/app_header.dart';
 
 class CashRedeemHistoryScreen extends StatefulWidget {
   const CashRedeemHistoryScreen({super.key});
   @override
-  State<StatefulWidget> createState() => _CashRedeemHistoryState();
+  State<CashRedeemHistoryScreen> createState() => _State();
 }
 
-class _CashRedeemHistoryState extends State<CashRedeemHistoryScreen> {
-  List<RedeemHistoryData> redeemHistoryArr = [];
-  SharedPreferences? sharedPreferences;
-  var userToken = "";
-  TextEditingController startDateController = TextEditingController();
-  TextEditingController endDateController = TextEditingController();
-  DateTime lastPickedStartDate = DateTime.now().subtract(const Duration(days: 1));
-  DateTime lastPickedEndDate = DateTime.now().subtract(const Duration(days: 1));
-  String selectedStartDate = "";
-  String selectedEndDate = "";
-  String startDate = "";
-  String endDate = "";
+class _State extends State<CashRedeemHistoryScreen> {
+  final _startCtrl = TextEditingController();
+  final _endCtrl   = TextEditingController();
+  String _token = '', _startDate = '', _endDate = '';
+  DateTime _lastStart = DateTime.now().subtract(const Duration(days: 1));
+  DateTime _lastEnd   = DateTime.now().subtract(const Duration(days: 1));
 
   @override
   void initState() {
     super.initState();
-    initializePreference().whenComplete(() {
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
-      check().then((internet) async {
-        if (internet) {
-          userProvider.transactionDataArr = [];
-          await userProvider.fetchCashTransactionList(context, userToken, "", "");
-        } else {
-          showWarningToast("No network connection");
-        }
-      });
-    });
+    _init();
   }
 
-  Future<void> initializePreference() async {
-    sharedPreferences = await SharedPreferences.getInstance();
-    setState(() {
-      userToken = sharedPreferences!.getString(TOKEN)!;
-    });
+  Future<void> _init() async {
+    final prefs = await SharedPreferences.getInstance();
+    _token = prefs.getString(TOKEN) ?? '';
+    final p = Provider.of<UserProvider>(context, listen: false);
+    p.transactionDataArr = [];
+    if (await check()) {
+      await p.fetchCashTransactionList(context, _token, '', '');
+    } else {
+      showWarningToast('No network connection');
+    }
+  }
+
+  @override
+  void dispose() {
+    _startCtrl.dispose();
+    _endCtrl.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final sw = MediaQuery.of(context).size.width;
+    final s = (sw / 390).clamp(0.8, 1.3);
+
     return Scaffold(
-      backgroundColor: PremiumTheme.backgroundColor,
-      drawer: sideBar(context),
-      body: SafeArea(
-        child: Consumer<UserProvider>(
-          builder: (context, UserProvider userProvider, child) {
-            return userProvider.isLoading
-                ? CustomScrollView(
-                    slivers: [
-                      _buildAppBar(),
-                      SliverPadding(
-                        padding: const EdgeInsets.all(24),
-                        sliver: SliverList(
-                          delegate: SliverChildListDelegate([
-                            Row(
-                              children: [
-                                Expanded(child: PremiumShimmer.card(height: 56)),
-                                const SizedBox(width: 12),
-                                Expanded(child: PremiumShimmer.card(height: 56)),
-                              ],
-                            ),
-                            const SizedBox(height: 20),
-                            ...List.generate(5, (index) => Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
-                              child: PremiumShimmer.card(height: 100),
-                            )),
-                          ]),
-                        ),
-                      ),
-                    ],
-                  )
-                : CustomScrollView(
-                    slivers: [
-                      _buildAppBar(),
-                      SliverPadding(
-                        padding: const EdgeInsets.all(24),
-                        sliver: SliverList(
-                          delegate: SliverChildListDelegate([
-                            _buildDateFilters(userProvider),
-                            const SizedBox(height: 24),
-                            _buildTransactionsList(userProvider),
-                          ]),
-                        ),
-                      ),
-                    ],
-                  );
-          },
-        ),
-      ),
-    );
-  }
+      backgroundColor: AppTheme.black,
+      body: Consumer<UserProvider>(
+        builder: (_, p, __) => CustomScrollView(
+          slivers: [
+            appHeader(context: context, title: 'Cash History'),
 
-  Widget _buildAppBar() {
-    return SliverAppBar(
-      expandedHeight: 60,
-      floating: false,
-      pinned: true,
-      backgroundColor: Colors.white,
-      elevation: 0,
-      leading: IconButton(
-        onPressed: () => Navigator.pop(context),
-        icon: Icon(
-          Icons.arrow_back_ios_rounded,
-          color: PremiumTheme.textPrimary,
-          size: 20,
-        ),
-      ),
-      flexibleSpace: FlexibleSpaceBar(
-        centerTitle: true,
-        title: Text(
-          'Cash Redeem History',
-          style: PremiumTheme.textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w700,
-            color: PremiumTheme.textPrimary,
-          ),
-        ).animate().fadeIn(delay: 200.ms),
-      ),
-    );
-  }
-
-  Widget _buildDateFilters(UserProvider userProvider) {
-    return PremiumCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Filter by Date',
-            style: PremiumTheme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildDateField(
-                  'Start Date',
-                  startDateController,
-                  () => _selectStartDate(userProvider),
-                ),
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(
+                  16 * s, 16 * s, 16 * s, 0),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  if (!p.isLoading && p.transactionDataArr.isNotEmpty)
+                    _summaryCard(p.transactionDataArr, s),
+                  _dateFilter(p, s),
+                  SizedBox(height: 16 * s),
+                  if (p.isLoading)
+                    ...List.generate(5, (_) => Padding(
+                      padding: EdgeInsets.only(bottom: 10 * s),
+                      child: PremiumShimmer.card(height: 88 * s),
+                    ))
+                  else if (p.transactionDataArr.isEmpty)
+                    _empty(s)
+                  else ...[
+                    Text('${p.transactionDataArr.length} transactions',
+                        style: TextStyle(
+                            fontSize: 12 * s,
+                            color: AppTheme.white.withOpacity(0.3),
+                            fontWeight: FontWeight.w500)),
+                    SizedBox(height: 10 * s),
+                    ...p.transactionDataArr.map((t) => _txCard(t, s)),
+                  ],
+                  SizedBox(height: 60 * s),
+                ]),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildDateField(
-                  'End Date',
-                  endDateController,
-                  () => _selectEndDate(userProvider),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    ).animate().fadeIn(delay: 300.ms);
-  }
-
-  Widget _buildDateField(String label, TextEditingController controller, VoidCallback onTap) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: PremiumTheme.textTheme.bodySmall?.copyWith(
-            fontWeight: FontWeight.w500,
-            color: PremiumTheme.textSecondary,
-          ),
-        ),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: controller,
-          readOnly: true,
-          onTap: onTap,
-          style: PremiumTheme.textTheme.bodyMedium,
-          decoration: InputDecoration(
-            hintText: 'Select date',
-            hintStyle: PremiumTheme.textTheme.bodyMedium?.copyWith(
-              color: PremiumTheme.textTertiary,
-            ),
-            filled: true,
-            fillColor: Colors.white,
-            suffixIcon: Icon(
-              Icons.calendar_today_rounded,
-              color: PremiumTheme.primaryColor,
-              size: 18,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: Colors.grey.shade300,
-                width: 1,
-              ),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: Colors.grey.shade300,
-                width: 1,
-              ),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: PremiumTheme.primaryColor,
-                width: 2,
-              ),
-            ),
-            contentPadding: const EdgeInsets.all(12),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTransactionsList(UserProvider userProvider) {
-    if (userProvider.transactionDataArr.isEmpty) {
-      return PremiumCard(
-        child: Column(
-          children: [
-            Icon(
-              Icons.receipt_long_rounded,
-              size: 64,
-              color: PremiumTheme.textTertiary,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No Transactions Found',
-              style: PremiumTheme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Your cash redeem history will appear here',
-              style: PremiumTheme.textTheme.bodyMedium?.copyWith(
-                color: PremiumTheme.textSecondary,
-              ),
-              textAlign: TextAlign.center,
             ),
           ],
         ),
-      ).animate().fadeIn(delay: 400.ms);
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Transaction History',
-          style: PremiumTheme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 16),
-        ...userProvider.transactionDataArr.asMap().entries.map((entry) {
-          int index = entry.key;
-          TransactionData transaction = entry.value;
-          return _buildTransactionCard(transaction, index);
-        }).toList(),
-      ],
+      ),
     );
   }
 
-  Widget _buildTransactionCard(TransactionData transaction, int index) {
-    Color statusColor = _getStatusColor(transaction);
-    String statusText = _getStatusText(transaction);
-    IconData statusIcon = _getStatusIcon(transaction);
+  // ── Summary card ──────────────────────────────────────────────────────────────
+  Widget _summaryCard(List<TransactionData> list, double s) {
+    final approved = list.where((t) =>
+        t.status == 'approved' || t.status == 'completed').length;
+    final pending  = list.where((t) => t.status == 'pending').length;
+    final rejected = list.where((t) => t.status == 'rejected').length;
 
-    return PremiumCard(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              statusIcon,
-              color: statusColor,
-              size: 24,
-            ),
+    return Container(
+      margin: EdgeInsets.only(bottom: 12 * s),
+      padding: EdgeInsets.symmetric(
+          vertical: 16 * s, horizontal: 8 * s),
+      decoration: BoxDecoration(
+        color: AppTheme.black2,
+        borderRadius: BorderRadius.circular(14 * s),
+        border: Border.all(color: AppTheme.black5),
+      ),
+      child: Row(children: [
+        _statCol('Total', '${list.length}', AppTheme.white, s),
+        _vDivider(),
+        _statCol('Approved', '$approved', AppTheme.orange, s),
+        _vDivider(),
+        _statCol('Pending', '$pending',
+            AppTheme.white.withOpacity(0.5), s),
+        _vDivider(),
+        _statCol('Rejected', '$rejected',
+            AppTheme.white.withOpacity(0.3), s),
+      ]),
+    );
+  }
+
+  Widget _statCol(String label, String val, Color color, double s) =>
+      Expanded(
+        child: Column(children: [
+          Text(val,
+              style: TextStyle(
+                  fontSize: 20 * s,
+                  fontWeight: FontWeight.w800,
+                  color: color)),
+          SizedBox(height: 3 * s),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 10 * s,
+                  color: AppTheme.white.withOpacity(0.3))),
+        ]),
+      );
+
+  Widget _vDivider() => Container(
+      width: 1, height: 32,
+      color: AppTheme.black5.withOpacity(0.6));
+
+  // ── Date filter ───────────────────────────────────────────────────────────────
+  Widget _dateFilter(UserProvider p, double s) => Container(
+    padding: EdgeInsets.all(14 * s),
+    decoration: BoxDecoration(
+      color: AppTheme.black2,
+      borderRadius: BorderRadius.circular(12 * s),
+      border: Border.all(color: AppTheme.black5),
+    ),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Icon(Icons.filter_list_rounded,
+            size: 15 * s, color: AppTheme.white.withOpacity(0.35)),
+        SizedBox(width: 6 * s),
+        Text('Filter by Date',
+            style: TextStyle(
+                fontSize: 13 * s,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.white)),
+        const Spacer(),
+        if (_startDate.isNotEmpty || _endDate.isNotEmpty)
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                _startDate = ''; _endDate = '';
+                _startCtrl.clear(); _endCtrl.clear();
+              });
+              _fetch(p);
+            },
+            child: Text('Clear',
+                style: TextStyle(
+                    fontSize: 12 * s,
+                    color: AppTheme.orange,
+                    fontWeight: FontWeight.w600)),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
+      ]),
+      SizedBox(height: 12 * s),
+      Row(children: [
+        Expanded(child: _datePicker('Start', _startCtrl,
+            () => _pickStart(p), s)),
+        SizedBox(width: 10 * s),
+        Expanded(child: _datePicker('End', _endCtrl,
+            () => _pickEnd(p), s)),
+      ]),
+    ]),
+  );
+
+  Widget _datePicker(String label, TextEditingController ctrl,
+      VoidCallback onTap, double s) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(label,
+          style: TextStyle(
+              fontSize: 10 * s,
+              color: AppTheme.white.withOpacity(0.3),
+              fontWeight: FontWeight.w500)),
+      SizedBox(height: 5 * s),
+      GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: EdgeInsets.symmetric(
+              horizontal: 12 * s, vertical: 10 * s),
+          decoration: BoxDecoration(
+            color: AppTheme.black3,
+            borderRadius: BorderRadius.circular(8 * s),
+            border: Border.all(color: AppTheme.black5),
+          ),
+          child: Row(children: [
+            Expanded(
+              child: Text(
+                ctrl.text.isEmpty ? 'Select' : ctrl.text,
+                style: TextStyle(
+                    fontSize: 13 * s,
+                    color: ctrl.text.isEmpty
+                        ? AppTheme.white.withOpacity(0.25)
+                        : AppTheme.white,
+                    fontWeight: FontWeight.w500),
+              ),
+            ),
+            Icon(Icons.calendar_today_outlined,
+                size: 13 * s,
+                color: AppTheme.white.withOpacity(0.3)),
+          ]),
+        ),
+      ),
+    ]);
+  }
+
+  // ── Transaction card ──────────────────────────────────────────────────────────
+  Widget _txCard(TransactionData tx, double s) {
+    final isCredit = tx.type == 'credit';
+    final statusColor = _statusColor(tx);
+    final statusText  = _statusText(tx);
+    final icon        = _statusIcon(tx);
+
+    return Container(
+      margin: EdgeInsets.only(bottom: 10 * s),
+      padding: EdgeInsets.all(14 * s),
+      decoration: BoxDecoration(
+        color: AppTheme.black2,
+        borderRadius: BorderRadius.circular(12 * s),
+        border: Border.all(color: AppTheme.black5),
+      ),
+      child: Row(children: [
+        Container(
+          width: 40 * s, height: 40 * s,
+          decoration: BoxDecoration(
+            color: AppTheme.black4,
+            borderRadius: BorderRadius.circular(10 * s),
+          ),
+          child: Icon(icon,
+              color: AppTheme.white.withOpacity(0.4), size: 18 * s),
+        ),
+        SizedBox(width: 12 * s),
+        Expanded(
+          child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text(tx.transactionId?.toString() ?? '—',
+                    style: TextStyle(
+                        fontSize: 13 * s,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.white)),
+                SizedBox(height: 2 * s),
+                Text(tx.remark?.toString() ?? '',
+                    style: TextStyle(
+                        fontSize: 12 * s,
+                        color: AppTheme.white.withOpacity(0.35)),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+                SizedBox(height: 2 * s),
                 Text(
-                  transaction.transactionId.toString(),
-                  style: PremiumTheme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  transaction.remark.toString(),
-                  style: PremiumTheme.textTheme.bodyMedium?.copyWith(
-                    color: PremiumTheme.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  "${lastTransactionDate(transaction.createdAt)} • ${getFormattedTime(transaction.createdAt)}",
-                  style: PremiumTheme.textTheme.bodySmall?.copyWith(
-                    color: PremiumTheme.textTertiary,
-                  ),
-                ),
-              ],
+                    '${lastTransactionDate(tx.createdAt)}  ·  ${getFormattedTime(tx.createdAt)}',
+                    style: TextStyle(
+                        fontSize: 11 * s,
+                        color: AppTheme.white.withOpacity(0.25))),
+              ]),
+        ),
+        SizedBox(width: 10 * s),
+        Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+          Text(
+            isCredit ? '+${tx.points}' : '-${tx.points}',
+            style: TextStyle(
+                fontSize: 15 * s,
+                fontWeight: FontWeight.w700,
+                color: isCredit
+                    ? AppTheme.white
+                    : AppTheme.white.withOpacity(0.4)),
+          ),
+          SizedBox(height: 5 * s),
+          Container(
+            padding: EdgeInsets.symmetric(
+                horizontal: 8 * s, vertical: 3 * s),
+            decoration: BoxDecoration(
+              color: statusColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(4 * s),
+              border: Border.all(
+                  color: statusColor.withOpacity(0.2)),
             ),
+            child: Text(statusText,
+                style: TextStyle(
+                    fontSize: 10 * s,
+                    fontWeight: FontWeight.w700,
+                    color: statusColor)),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                transaction.type == "credit"
-                    ? "+${transaction.points.toString()}"
-                    : "-${transaction.points.toString()}",
-                style: PremiumTheme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: transaction.type == "credit"
-                      ? PremiumTheme.successColor
-                      : PremiumTheme.errorColor,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: statusColor,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text(
-                  statusText,
-                  style: PremiumTheme.textTheme.bodySmall?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
+        ]),
+      ]),
+    );
+  }
+
+  Widget _empty(double s) => Padding(
+    padding: EdgeInsets.symmetric(vertical: 48 * s),
+    child: Column(children: [
+      Container(
+        width: 64 * s, height: 64 * s,
+        decoration: BoxDecoration(
+          color: AppTheme.black3,
+          borderRadius: BorderRadius.circular(16 * s),
+        ),
+        child: Icon(Icons.receipt_long_outlined,
+            size: 28 * s, color: AppTheme.white.withOpacity(0.2)),
       ),
-    ).animate().fadeIn(delay: Duration(milliseconds: 400 + (index * 100)));
-  }
+      SizedBox(height: 14 * s),
+      Text('No Transactions Found',
+          style: TextStyle(
+              fontSize: 15 * s,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.white)),
+      SizedBox(height: 6 * s),
+      Text('Your cash redeem history will appear here',
+          style: TextStyle(
+              fontSize: 13 * s,
+              color: AppTheme.white.withOpacity(0.3))),
+    ]),
+  );
 
-  Color _getStatusColor(TransactionData transaction) {
-    if (transaction.transactionType == "qr") return PremiumTheme.successColor;
-    
-    switch (transaction.status) {
-      case "approved":
-      case "completed":
-        return PremiumTheme.successColor;
-      case "rejected":
-        return PremiumTheme.errorColor;
-      case "pending":
-      default:
-        return PremiumTheme.warningColor;
+  // ── Status helpers ────────────────────────────────────────────────────────────
+  Color _statusColor(TransactionData t) {
+    switch (t.status) {
+      case 'approved': case 'completed': return AppTheme.orange;
+      case 'rejected': return AppTheme.white.withOpacity(0.3);
+      default: return AppTheme.white.withOpacity(0.5);
     }
   }
 
-  String _getStatusText(TransactionData transaction) {
-    if (transaction.transactionType == "qr") return "Success";
-    
-    switch (transaction.status) {
-      case "approved":
-        return "Approved";
-      case "rejected":
-        return "Rejected";
-      case "completed":
-        return "Completed";
-      case "pending":
-      default:
-        return "Pending";
+  String _statusText(TransactionData t) {
+    switch (t.status) {
+      case 'approved': return 'Approved';
+      case 'rejected': return 'Rejected';
+      case 'completed': return 'Completed';
+      default: return 'Pending';
     }
   }
 
-  IconData _getStatusIcon(TransactionData transaction) {
-    if (transaction.transactionType == "qr") return Icons.check_circle_rounded;
-    
-    switch (transaction.status) {
-      case "approved":
-      case "completed":
-        return Icons.check_circle_rounded;
-      case "rejected":
-        return Icons.cancel_rounded;
-      case "pending":
-      default:
-        return Icons.schedule_rounded;
+  IconData _statusIcon(TransactionData t) {
+    switch (t.status) {
+      case 'approved': case 'completed':
+        return Icons.check_circle_outline_rounded;
+      case 'rejected': return Icons.cancel_outlined;
+      default: return Icons.schedule_rounded;
     }
   }
 
-  Future<void> _selectStartDate(UserProvider userProvider) async {
-    DateTime? pickedDate = await showDatePicker(
+  Future<void> _pickStart(UserProvider p) async {
+    final d = await showDatePicker(
       context: context,
-      initialDate: lastPickedStartDate,
-      firstDate: DateTime(1900),
-      lastDate: DateTime.now().subtract(const Duration(days: 1)),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: PremiumTheme.primaryColor,
-              onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: PremiumTheme.textPrimary,
-            ),
-          ),
-          child: child!,
-        );
-      },
+      initialDate: _lastStart,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
     );
-
-    if (pickedDate != null) {
-      lastPickedStartDate = pickedDate;
-      String formattedDate = DateFormat('dd/MM/yyyy').format(pickedDate);
-      startDate = DateFormat('yyyy-MM-dd').format(pickedDate);
-      startDateController.text = formattedDate;
-      _fetchTransactions(userProvider);
-    } else {
-      setState(() {
-        startDate = "";
-        startDateController.clear();
-        _fetchTransactions(userProvider);
-      });
+    if (d != null) {
+      _lastStart = d;
+      _startDate = DateFormat('yyyy-MM-dd').format(d);
+      _startCtrl.text = DateFormat('dd/MM/yyyy').format(d);
+      _fetch(p);
     }
   }
 
-  Future<void> _selectEndDate(UserProvider userProvider) async {
-    DateTime? pickedDate = await showDatePicker(
+  Future<void> _pickEnd(UserProvider p) async {
+    final d = await showDatePicker(
       context: context,
-      initialDate: lastPickedEndDate,
-      firstDate: DateTime(1900),
-      lastDate: DateTime.now().subtract(const Duration(days: 1)),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: PremiumTheme.primaryColor,
-              onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: PremiumTheme.textPrimary,
-            ),
-          ),
-          child: child!,
-        );
-      },
+      initialDate: _lastEnd,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
     );
-
-    if (pickedDate != null) {
-      lastPickedEndDate = pickedDate;
-      String formattedDate = DateFormat('dd/MM/yyyy').format(pickedDate);
-      endDate = DateFormat('yyyy-MM-dd').format(pickedDate);
-      endDateController.text = formattedDate;
-      _fetchTransactions(userProvider);
-    } else {
-      setState(() {
-        endDate = "";
-        endDateController.clear();
-        _fetchTransactions(userProvider);
-      });
+    if (d != null) {
+      _lastEnd = d;
+      _endDate = DateFormat('yyyy-MM-dd').format(d);
+      _endCtrl.text = DateFormat('dd/MM/yyyy').format(d);
+      _fetch(p);
     }
   }
 
-  void _fetchTransactions(UserProvider userProvider) {
-    check().then((internet) async {
-      if (internet) {
-        userProvider.transactionDataArr = [];
-        await userProvider.fetchCashTransactionList(context, userToken, startDate, endDate);
+  void _fetch(UserProvider p) {
+    check().then((ok) async {
+      if (ok) {
+        p.transactionDataArr = [];
+        await p.fetchCashTransactionList(
+            context, _token, _startDate, _endDate);
       } else {
-        showWarningToast("No network connection");
+        showWarningToast('No network connection');
       }
     });
   }

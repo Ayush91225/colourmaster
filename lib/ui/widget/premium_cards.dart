@@ -36,7 +36,7 @@ class PremiumCard extends StatelessWidget {
       height: height,
       margin: margin,
       decoration: BoxDecoration(
-        gradient: useGradient ? (gradient ?? PremiumTheme.cardGradient) : null,
+        gradient: useGradient ? (gradient ?? PremiumTheme.primaryGradient) : null,
         color: useGradient ? null : (backgroundColor ?? PremiumTheme.cardColor),
         borderRadius: PremiumTheme.cardRadius,
         boxShadow: showShadow ? [PremiumTheme.cardShadow] : null,

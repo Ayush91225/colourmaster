@@ -1,13 +1,10 @@
 import 'dart:io';
-
 import 'package:colourmaster/ui/widget/premium_buttons.dart';
 import 'package:colourmaster/utils/premium_theme.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:upgrader/upgrader.dart';
 
 import '../provider/user_provider.dart';
@@ -16,17 +13,13 @@ import 'premium_register_screen.dart';
 
 class PremiumLoginScreen extends StatefulWidget {
   const PremiumLoginScreen({super.key});
-
   @override
-  State<PremiumLoginScreen> createState() => _PremiumLoginScreenState();
+  State<PremiumLoginScreen> createState() => _State();
 }
 
-class _PremiumLoginScreenState extends State<PremiumLoginScreen> {
-  GlobalKey<FormState> formKey = GlobalKey<FormState>();
-  TextEditingController mobileController = TextEditingController();
-  ScrollController scrollController = ScrollController();
-  SharedPreferences? sharedPreferences;
-  bool isLoading = false;
+class _State extends State<PremiumLoginScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _mobile  = TextEditingController();
 
   @override
   void initState() {
@@ -34,18 +27,25 @@ class _PremiumLoginScreenState extends State<PremiumLoginScreen> {
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarIconBrightness: Brightness.light,
       statusBarColor: Colors.transparent,
+      systemNavigationBarColor: AppTheme.black,
     ));
-
-    mobileController.addListener(() {
-      setState(() {});
-    });
+    _mobile.addListener(() => setState(() {}));
   }
 
   @override
-  void dispose() {
-    mobileController.dispose();
-    scrollController.dispose();
-    super.dispose();
+  void dispose() { _mobile.dispose(); super.dispose(); }
+
+  void _submit(UserProvider p) {
+    if (_formKey.currentState!.validate()) {
+      check().then((ok) async {
+        if (ok) {
+          FocusManager.instance.primaryFocus?.unfocus();
+          await p.loginUser(_mobile.text.trim(), context);
+        } else {
+          showWarningToast('No network connection');
+        }
+      });
+    }
   }
 
   @override
@@ -53,208 +53,163 @@ class _PremiumLoginScreenState extends State<PremiumLoginScreen> {
     return UpgradeAlert(
       barrierDismissible: false,
       dialogStyle: !kIsWeb
-          ? Platform.isIOS
-              ? UpgradeDialogStyle.cupertino
-              : UpgradeDialogStyle.material
+          ? (Platform.isIOS ? UpgradeDialogStyle.cupertino : UpgradeDialogStyle.material)
           : UpgradeDialogStyle.material,
       child: Scaffold(
-        backgroundColor: PremiumTheme.backgroundColor,
-        resizeToAvoidBottomInset: false,
-        body: SafeArea(
-          child: Consumer<UserProvider>(
-            builder: (context, UserProvider userProvider, child) {
-              return SizedBox(
-                height: MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top,
-                child: Column(
-                  children: [
-                    // Top section with logo
-                    Expanded(
-                      flex: 1,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Image.asset(
-                              'assets/images/logo.png',
-                              width: 80,
-                              height: 80,
-                              fit: BoxFit.contain,
-                            ).animate().scale(delay: 200.ms),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Welcome to',
-                              style: PremiumTheme.textTheme.bodyLarge?.copyWith(
-                                color: PremiumTheme.textSecondary,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ).animate().fadeIn(delay: 400.ms),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Color Master',
-                              style: PremiumTheme.textTheme.headlineLarge?.copyWith(
-                                color: PremiumTheme.textPrimary,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: -0.5,
-                              ),
-                            ).animate().fadeIn(delay: 600.ms),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Your Premium Rewards Partner',
-                              style: PremiumTheme.textTheme.bodyMedium?.copyWith(
-                                color: PremiumTheme.textSecondary,
-                              ),
-                              textAlign: TextAlign.center,
-                            ).animate().fadeIn(delay: 800.ms),
-                          ],
-                        ),
-                      ),
+        resizeToAvoidBottomInset: true,
+        backgroundColor: AppTheme.black,
+        body: Consumer<UserProvider>(
+          builder: (ctx, provider, _) => Column(
+            children: [
+              // ── Top: brand — fills all space above the sheet ──────────
+              Expanded(
+                child: SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 28),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Image.asset('assets/images/logo.png',
+                            width: 90, height: 90, fit: BoxFit.contain),
+                        const SizedBox(height: 16),
+                        const Text('Colour Master',
+                            style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.white,
+                                letterSpacing: -0.3)),
+                        const SizedBox(height: 4),
+                        Text('Rewards & Loyalty',
+                            style: TextStyle(
+                                fontSize: 13,
+                                color: AppTheme.white.withOpacity(0.3),
+                                fontWeight: FontWeight.w400)),
+                      ],
                     ),
-                    
-                    // Login form section (dock style)
-                    Expanded(
-                      flex: 2,
-                      child: Container(
-                        width: double.infinity,
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(30),
-                            topRight: Radius.circular(30),
-                          ),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(32),
-                          child: Form(
-                            key: formKey,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const SizedBox(height: 20),
-                                Text(
-                                  'Sign In',
-                                  style: PremiumTheme.textTheme.headlineMedium?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                    color: PremiumTheme.textPrimary,
-                                  ),
-                                ).animate().slideX(delay: 1000.ms),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Enter your mobile number to continue',
-                                  style: PremiumTheme.textTheme.bodyLarge?.copyWith(
-                                    color: PremiumTheme.textSecondary,
-                                  ),
-                                ).animate().slideX(delay: 1200.ms),
-                                const SizedBox(height: 24),
-                                
-                                Text(
-                                  'Mobile Number',
-                                  style: PremiumTheme.textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                    color: PremiumTheme.textPrimary,
-                                  ),
-                                ).animate().fadeIn(delay: 1400.ms),
-                                const SizedBox(height: 12),
-                                TextFormField(
-                                  controller: mobileController,
-                                  keyboardType: TextInputType.phone,
-                                  maxLength: 10,
-                                  inputFormatters: [
-                                    FilteringTextInputFormatter.digitsOnly
-                                  ],
-                                  decoration: InputDecoration(
-                                    hintText: 'Enter your mobile number',
-                                    prefixIcon: Container(
-                                      margin: const EdgeInsets.all(12),
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 12, vertical: 8),
-                                      decoration: BoxDecoration(
-                                        color: PremiumTheme.primaryColor.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        '+91',
-                                        style: PremiumTheme.textTheme.titleMedium?.copyWith(
-                                          color: PremiumTheme.primaryColor,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                    counterText: '',
-                                  ),
-                                  validator: (String? value) {
-                                    if (value!.isEmpty) {
-                                      return 'Mobile Number Required';
-                                    } else if (value.length < 10) {
-                                      return 'Please enter a valid 10 digit mobile number';
-                                    }
-                                    return null;
-                                  },
-                                ).animate().slideY(delay: 1600.ms),
-                                
-                                const SizedBox(height: 24),
-                                
-                                PremiumButton(
-                                  text: 'Sign In',
-                                  isLoading: userProvider.isLoading,
-                                  width: double.infinity,
-                                  onPressed: () async {
-                                    if (formKey.currentState!.validate()) {
-                                      check().then((internet) async {
-                                        if (internet) {
-                                          FocusManager.instance.primaryFocus?.unfocus();
-                                          await userProvider.loginUser(
-                                              mobileController.text.toString().trim(),
-                                              context);
-                                        } else {
-                                          showWarningToast("No network connection");
-                                        }
-                                      });
-                                    }
-                                  },
-                                ).animate().slideY(delay: 1800.ms),
-                                
-                                const Spacer(),
-                                
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      "Don't have an account? ",
-                                      style: PremiumTheme.textTheme.bodyMedium?.copyWith(
-                                        color: PremiumTheme.textSecondary,
-                                      ),
-                                    ),
-                                    GestureDetector(
-                                      onTap: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                              builder: (context) => const PremiumRegisterScreen()),
-                                        );
-                                      },
-                                      child: Text(
-                                        'Sign Up',
-                                        style: PremiumTheme.textTheme.bodyMedium?.copyWith(
-                                          color: PremiumTheme.primaryColor,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ).animate().fadeIn(delay: 2000.ms),
-                                
-                                const SizedBox(height: 20),
-                              ],
+                  ),
+                ),
+              ),
+
+              // ── Bottom: form sheet ────────────────────────────────────
+              Container(
+                decoration: const BoxDecoration(
+                  color: AppTheme.black2,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                  border: Border(top: BorderSide(color: AppTheme.black5, width: 1)),
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Drag handle
+                          Center(
+                            child: Container(
+                              width: 32, height: 3,
+                              decoration: BoxDecoration(
+                                  color: AppTheme.black5,
+                                  borderRadius: BorderRadius.circular(2)),
                             ),
                           ),
-                        ),
-                      ).animate().slideY(begin: 0.3, delay: 1000.ms),
+                          const SizedBox(height: 20),
+
+                          const Text('Sign in',
+                              style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.white)),
+                          const SizedBox(height: 20),
+
+                          // Phone field
+                          TextFormField(
+                            controller: _mobile,
+                            keyboardType: TextInputType.phone,
+                            maxLength: 10,
+                            textInputAction: TextInputAction.done,
+                            onFieldSubmitted: (_) => _submit(provider),
+                            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                            style: const TextStyle(
+                                fontSize: 16,
+                                color: AppTheme.white,
+                                fontWeight: FontWeight.w500,
+                                letterSpacing: 1.5),
+                            decoration: InputDecoration(
+                              counterText: '',
+                              hintText: 'Mobile number',
+                              hintStyle: TextStyle(
+                                  fontSize: 15,
+                                  color: AppTheme.white.withOpacity(0.2),
+                                  letterSpacing: 0,
+                                  fontWeight: FontWeight.w400),
+                              prefixIcon: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 14),
+                                child: Text('+91',
+                                    style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppTheme.orange)),
+                              ),
+                              prefixIconConstraints: const BoxConstraints(),
+                              suffixIcon: _mobile.text.isNotEmpty
+                                  ? GestureDetector(
+                                      onTap: () => _mobile.clear(),
+                                      child: const Padding(
+                                        padding: EdgeInsets.all(12),
+                                        child: Icon(Icons.close_rounded, size: 16, color: Color(0x4DFFFFFF)),
+                                      ),
+                                    )
+                                  : null,
+                            ),
+                            validator: (v) {
+                              if (v == null || v.isEmpty) return 'Required';
+                              if (v.length < 10) return 'Enter a valid 10-digit number';
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+
+                          PremiumButton(
+                            text: 'Continue',
+                            isLoading: provider.isLoading,
+                            width: double.infinity,
+                            height: 56,
+                            onPressed: () => _submit(provider),
+                          ),
+                          const SizedBox(height: 20),
+
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text("New here?  ",
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      color: AppTheme.white.withOpacity(0.35))),
+                              GestureDetector(
+                                onTap: () => Navigator.push(ctx,
+                                    MaterialPageRoute(
+                                        builder: (_) => const PremiumRegisterScreen())),
+                                child: const Text('Create account',
+                                    style: TextStyle(
+                                        fontSize: 13,
+                                        color: AppTheme.orange,
+                                        fontWeight: FontWeight.w600)),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                  ],
+                  ),
                 ),
-              );
-            },
+              ),
+            ],
           ),
         ),
       ),

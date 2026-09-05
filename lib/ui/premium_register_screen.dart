@@ -6,7 +6,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -21,24 +20,22 @@ import 'premium_login_screen.dart';
 
 class PremiumRegisterScreen extends StatefulWidget {
   const PremiumRegisterScreen({super.key});
-
   @override
-  State<PremiumRegisterScreen> createState() => _PremiumRegisterScreenState();
+  State<PremiumRegisterScreen> createState() => _State();
 }
 
-class _PremiumRegisterScreenState extends State<PremiumRegisterScreen> {
-  GlobalKey<FormState> formKey = GlobalKey<FormState>();
-  bool agreeTerms = false;
+class _State extends State<PremiumRegisterScreen> {
+  final _formKey    = GlobalKey<FormState>();
+  final _name       = TextEditingController();
+  final _mobile     = TextEditingController();
+  final _email      = TextEditingController();
+  final _address    = TextEditingController();
+  final _dob        = TextEditingController();
+  final _scroll     = ScrollController();
+  bool _agreeTerms  = false;
   File? _imageFile;
-
-  TextEditingController nameController = TextEditingController();
-  TextEditingController emailController = TextEditingController();
-  TextEditingController addressController = TextEditingController();
-  TextEditingController dobController = TextEditingController();
-  TextEditingController mobileNumberController = TextEditingController();
-  ScrollController scrollController = ScrollController();
-  DateTime lastPickedDate = DateTime.now().subtract(const Duration(days: 1));
-  String dobDate = "";
+  String _dobDate   = '';
+  DateTime _lastDate = DateTime.now().subtract(const Duration(days: 1));
 
   @override
   void initState() {
@@ -46,35 +43,61 @@ class _PremiumRegisterScreenState extends State<PremiumRegisterScreen> {
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarIconBrightness: Brightness.light,
       statusBarColor: Colors.transparent,
+      systemNavigationBarColor: AppTheme.black,
     ));
   }
 
+  @override
+  void dispose() {
+    _name.dispose(); _mobile.dispose(); _email.dispose();
+    _address.dispose(); _dob.dispose(); _scroll.dispose();
+    super.dispose();
+  }
+
   Future<void> _pickImage(ImageSource source) async {
-    final pickedImage = await ImagePicker().pickImage(source: source);
-    if (pickedImage != null) {
-      cropImage(pickedImage);
+    final picked = await ImagePicker().pickImage(source: source);
+    if (picked != null) _cropImage(picked);
+  }
+
+  Future<void> _cropImage(XFile file) async {
+    final cropped = await ImageCropper().cropImage(
+      compressQuality: 50,
+      compressFormat: ImageCompressFormat.png,
+      sourcePath: file.path,
+      uiSettings: [
+        AndroidUiSettings(
+            toolbarTitle: 'Crop',
+            cropGridColor: Colors.black,
+            initAspectRatio: CropAspectRatioPreset.original,
+            lockAspectRatio: false),
+        IOSUiSettings(title: 'Crop'),
+      ],
+    );
+    if (cropped != null) {
+      setState(() {
+        _imageFile = ImageCompression().compressAndResizeImage(File(cropped.path));
+      });
     }
   }
 
-  Future cropImage(XFile imageFile) async {
-    CroppedFile? croppedFile = await ImageCropper().cropImage(
-      compressQuality: 50,
-      compressFormat: ImageCompressFormat.png,
-      sourcePath: imageFile.path,
-      uiSettings: [
-        AndroidUiSettings(
-          toolbarTitle: 'Crop',
-          cropGridColor: Colors.black,
-          initAspectRatio: CropAspectRatioPreset.original,
-          lockAspectRatio: false,
-        ),
-        IOSUiSettings(title: 'Crop')
-      ],
-    );
-    if (croppedFile != null) {
-      File pickedFile = File(croppedFile.path);
-      _imageFile = ImageCompression().compressAndResizeImage(pickedFile);
-      setState(() {});
+  void _submit(UserProvider p) async {
+    if (!_agreeTerms) {
+      showWarningToast('Please accept the terms & conditions');
+      return;
+    }
+    if (_formKey.currentState!.validate()) {
+      check().then((ok) async {
+        if (ok) {
+          FocusManager.instance.primaryFocus?.unfocus();
+          await p.registerUser(
+            _name.text.trim(), _mobile.text.trim(),
+            _email.text.trim(), _dobDate,
+            _address.text.trim(), _imageFile, context,
+          );
+        } else {
+          showWarningToast('No network connection');
+        }
+      });
     }
   }
 
@@ -83,208 +106,184 @@ class _PremiumRegisterScreenState extends State<PremiumRegisterScreen> {
     return UpgradeAlert(
       barrierDismissible: false,
       dialogStyle: !kIsWeb
-          ? Platform.isIOS
-              ? UpgradeDialogStyle.cupertino
-              : UpgradeDialogStyle.material
+          ? (Platform.isIOS ? UpgradeDialogStyle.cupertino : UpgradeDialogStyle.material)
           : UpgradeDialogStyle.material,
       child: Scaffold(
-        backgroundColor: PremiumTheme.backgroundColor,
-        resizeToAvoidBottomInset: false,
-        body: SafeArea(
-          child: Consumer<UserProvider>(
-            builder: (context, UserProvider userProvider, child) {
-              return Column(
-                children: [
-                  // Header section
-                  Container(
-                    padding: const EdgeInsets.all(32),
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 20),
-                        Image.asset(
-                          'assets/images/logo.png',
-                          width: 100,
-                          height: 100,
-                          fit: BoxFit.contain,
-                        ).animate().scale(delay: 200.ms),
-                        const SizedBox(height: 24),
-                        Text(
-                          'Join Color Master',
-                          style: PremiumTheme.textTheme.headlineLarge?.copyWith(
-                            color: PremiumTheme.textPrimary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ).animate().fadeIn(delay: 400.ms),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Create your rewards account',
-                          style: PremiumTheme.textTheme.bodyLarge?.copyWith(
-                            color: PremiumTheme.textSecondary,
-                          ),
-                        ).animate().fadeIn(delay: 600.ms),
-                      ],
+        resizeToAvoidBottomInset: true,
+        backgroundColor: AppTheme.black,
+        body: Consumer<UserProvider>(
+          builder: (ctx, provider, _) => Column(
+            children: [
+              // ── Brand top ─────────────────────────────────────────────
+              Expanded(
+                flex: 2,
+                child: SafeArea(
+                  bottom: false,
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 28),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Image.asset('assets/images/logo.png',
+                              width: 90, height: 90, fit: BoxFit.contain),
+                          const SizedBox(height: 16),
+                          const Text('Colour Master',
+                              style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppTheme.white,
+                                  letterSpacing: -0.3)),
+                          const SizedBox(height: 4),
+                          Text('Rewards & Loyalty',
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  color: AppTheme.white.withOpacity(0.3))),
+                        ],
+                      ),
                     ),
                   ),
-                  
-                  // Form section (dock style)
-                  Expanded(
-                    child: Container(
-                      width: double.infinity,
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(30),
-                          topRight: Radius.circular(30),
-                        ),
-                      ),
-                      child: SingleChildScrollView(
-                        controller: scrollController,
-                        padding: const EdgeInsets.all(32),
-                        child: Form(
-                          key: formKey,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Sign Up',
-                                style: PremiumTheme.textTheme.headlineMedium?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ).animate().slideX(delay: 800.ms),
-                              const SizedBox(height: 32),
-                              
-                              _buildTextField(
-                                'Full Name',
-                                'Enter your full name',
-                                nameController,
+                ),
+              ),
+
+              // ── Scrollable form sheet ─────────────────────────────────
+              Expanded(
+                flex: 5,
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: AppTheme.black2,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                    border: Border(top: BorderSide(color: AppTheme.black5)),
+                  ),
+                  child: SafeArea(
+                    top: false,
+                    child: SingleChildScrollView(
+                      controller: _scroll,
+                      padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Handle
+                            Center(
+                              child: Container(
+                                width: 32, height: 3,
+                                decoration: BoxDecoration(
+                                    color: AppTheme.black5,
+                                    borderRadius: BorderRadius.circular(2)),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+
+                            const Text('Create account',
+                                style: TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppTheme.white)),
+                            const SizedBox(height: 20),
+
+                            _field('Full Name', 'Your full name', _name,
                                 TextInputType.text,
-                                validator: (value) => value!.isEmpty ? 'Name Required' : null,
-                              ).animate().slideY(delay: 1000.ms),
-                              
-                              const SizedBox(height: 20),
-                              
-                              _buildTextField(
-                                'Mobile Number',
-                                'Enter your mobile number',
-                                mobileNumberController,
+                                validator: (v) => v!.isEmpty ? 'Required' : null),
+                            const SizedBox(height: 14),
+
+                            _field('Mobile Number', '10-digit number', _mobile,
                                 TextInputType.phone,
                                 maxLength: 10,
-                                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                                validator: (value) {
-                                  if (value!.isEmpty) return 'Mobile Number Required';
-                                  if (value.length < 10) return 'Please enter a valid 10 digit mobile number';
+                                formatters: [FilteringTextInputFormatter.digitsOnly],
+                                validator: (v) {
+                                  if (v!.isEmpty) return 'Required';
+                                  if (v.length < 10) return 'Enter valid 10-digit number';
                                   return null;
-                                },
-                              ).animate().slideY(delay: 1100.ms),
-                              
-                              const SizedBox(height: 20),
-                              
-                              _buildTextField(
-                                'Email Address',
-                                'Enter your email address',
-                                emailController,
+                                }),
+                            const SizedBox(height: 14),
+
+                            _field('Email Address', 'your@email.com', _email,
                                 TextInputType.emailAddress,
-                                validator: validateEmail,
-                              ).animate().slideY(delay: 1200.ms),
-                              
-                              const SizedBox(height: 20),
-                              
-                              _buildTextField(
-                                'Address',
-                                'Enter your address',
-                                addressController,
+                                validator: validateEmail),
+                            const SizedBox(height: 14),
+
+                            _field('Address', 'Your address', _address,
                                 TextInputType.text,
-                                validator: (value) => value!.isEmpty ? 'Address Required' : null,
-                              ).animate().slideY(delay: 1300.ms),
-                              
-                              const SizedBox(height: 20),
-                              
-                              _buildDateField().animate().slideY(delay: 1400.ms),
-                              
-                              const SizedBox(height: 24),
-                              
-                              _buildTermsCheckbox().animate().fadeIn(delay: 1500.ms),
-                              
-                              const SizedBox(height: 32),
-                              
-                              PremiumButton(
-                                text: 'Create Account',
-                                isLoading: userProvider.isLoading,
-                                width: double.infinity,
-                                onPressed: () => _handleSignUp(userProvider),
-                              ).animate().slideY(delay: 1600.ms),
-                              
-                              const SizedBox(height: 24),
-                              
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    'Already have an account? ',
-                                    style: PremiumTheme.textTheme.bodyMedium?.copyWith(
-                                      color: PremiumTheme.textSecondary,
-                                    ),
-                                  ),
-                                  GestureDetector(
-                                    onTap: () {
-                                      Navigator.pushReplacement(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) => const PremiumLoginScreen(),
-                                        ),
-                                      );
-                                    },
-                                    child: Text(
-                                      'Sign In',
-                                      style: PremiumTheme.textTheme.bodyMedium?.copyWith(
-                                        color: PremiumTheme.primaryColor,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ).animate().fadeIn(delay: 1800.ms),
-                              
-                              const SizedBox(height: 20),
-                            ],
-                          ),
+                                validator: (v) => v!.isEmpty ? 'Required' : null),
+                            const SizedBox(height: 14),
+
+                            _dateField(),
+                            const SizedBox(height: 20),
+
+                            _termsRow(),
+                            const SizedBox(height: 24),
+
+                            PremiumButton(
+                              text: 'Create Account',
+                              isLoading: provider.isLoading,
+                              width: double.infinity,
+                              height: 56,
+                              onPressed: () => _submit(provider),
+                            ),
+                            const SizedBox(height: 20),
+
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text('Already have an account?  ',
+                                    style: TextStyle(
+                                        fontSize: 13,
+                                        color: AppTheme.white.withOpacity(0.35))),
+                                GestureDetector(
+                                  onTap: () => Navigator.pushReplacement(ctx,
+                                      MaterialPageRoute(
+                                          builder: (_) => const PremiumLoginScreen())),
+                                  child: const Text('Sign In',
+                                      style: TextStyle(
+                                          fontSize: 13,
+                                          color: AppTheme.orange,
+                                          fontWeight: FontWeight.w600)),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
-                    ).animate().slideY(begin: 0.3, delay: 800.ms),
+                    ),
                   ),
-                ],
-              );
-            },
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildTextField(
+  // ── Field label + input ────────────────────────────────────────────────────
+  Widget _field(
     String label,
     String hint,
-    TextEditingController controller,
-    TextInputType inputType, {
+    TextEditingController ctrl,
+    TextInputType type, {
     String? Function(String?)? validator,
     int? maxLength,
-    List<TextInputFormatter>? inputFormatters,
+    List<TextInputFormatter>? formatters,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: PremiumTheme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 12),
+        Text(label.toUpperCase(),
+            style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.white.withOpacity(0.4),
+                letterSpacing: 0.8)),
+        const SizedBox(height: 7),
         TextFormField(
-          controller: controller,
-          keyboardType: inputType,
+          controller: ctrl,
+          keyboardType: type,
           maxLength: maxLength,
-          inputFormatters: inputFormatters,
+          inputFormatters: formatters,
+          style: const TextStyle(
+              fontSize: 15, color: AppTheme.white, fontWeight: FontWeight.w500),
           decoration: InputDecoration(
             hintText: hint,
             counterText: '',
@@ -295,124 +294,81 @@ class _PremiumRegisterScreenState extends State<PremiumRegisterScreen> {
     );
   }
 
-  Widget _buildDateField() {
+  // ── Date field ─────────────────────────────────────────────────────────────
+  Widget _dateField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Date of Birth',
-          style: PremiumTheme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 12),
+        Text('DATE OF BIRTH',
+            style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.white.withOpacity(0.4),
+                letterSpacing: 0.8)),
+        const SizedBox(height: 7),
         TextFormField(
-          controller: dobController,
+          controller: _dob,
           readOnly: true,
-          decoration: const InputDecoration(
-            hintText: 'DD/MM/YYYY',
-            suffixIcon: Icon(Icons.calendar_today_rounded),
+          style: const TextStyle(
+              fontSize: 15, color: AppTheme.white, fontWeight: FontWeight.w500),
+          decoration: InputDecoration(
+            hintText: 'DD / MM / YYYY',
+            suffixIcon: Icon(Icons.calendar_today_outlined,
+                size: 16, color: AppTheme.white.withOpacity(0.3)),
           ),
           onTap: () async {
-            DateTime? pickedDate = await showDatePicker(
+            final picked = await showDatePicker(
               context: context,
-              initialDate: lastPickedDate,
+              initialDate: _lastDate,
               firstDate: DateTime(1900),
               lastDate: DateTime.now().subtract(const Duration(days: 1)),
             );
-            if (pickedDate != null) {
-              lastPickedDate = pickedDate;
-              String formattedDate = DateFormat('dd/MM/yyyy').format(pickedDate);
-              dobDate = DateFormat('yyyy/MM/dd').format(pickedDate);
-              dobController.text = formattedDate;
+            if (picked != null) {
+              _lastDate = picked;
+              _dobDate = DateFormat('yyyy/MM/dd').format(picked);
+              _dob.text = DateFormat('dd/MM/yyyy').format(picked);
             }
           },
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) {
-              return 'Select your Date of Birth';
-            }
-            return null;
-          },
+          validator: (v) =>
+              (v == null || v.trim().isEmpty) ? 'Select date of birth' : null,
         ),
       ],
     );
   }
 
-  Widget _buildTermsCheckbox() {
+  // ── Terms checkbox ─────────────────────────────────────────────────────────
+  Widget _termsRow() {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          width: 24,
-          height: 24,
+          width: 20, height: 20,
           child: Checkbox(
-            value: agreeTerms,
-            onChanged: (value) {
-              setState(() {
-                agreeTerms = value ?? false;
-              });
-            },
-            activeColor: PremiumTheme.primaryColor,
+            value: _agreeTerms,
+            onChanged: (v) => setState(() => _agreeTerms = v ?? false),
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 10),
         Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(top: 2),
-            child: RichText(
-              text: TextSpan(
-                children: [
-                  TextSpan(
-                    text: 'I agree to the ',
-                    style: PremiumTheme.textTheme.bodyMedium?.copyWith(
-                      color: PremiumTheme.textSecondary,
-                    ),
-                  ),
-                  TextSpan(
-                    text: 'Terms and Conditions',
-                    style: PremiumTheme.textTheme.bodyMedium?.copyWith(
-                      color: PremiumTheme.primaryColor,
-                      fontWeight: FontWeight.w600,
-                      decoration: TextDecoration.underline,
-                    ),
-                    recognizer: TapGestureRecognizer()
-                      ..onTap = () {
-                        redirectToBrowser(termConditionURL);
-                      },
-                  ),
-                ],
-              ),
-            ),
+          child: RichText(
+            text: TextSpan(children: [
+              TextSpan(
+                  text: 'I agree to the ',
+                  style: TextStyle(
+                      fontSize: 13, color: AppTheme.white.withOpacity(0.4))),
+              TextSpan(
+                  text: 'Terms & Conditions',
+                  style: const TextStyle(
+                      fontSize: 13,
+                      color: AppTheme.orange,
+                      fontWeight: FontWeight.w600),
+                  recognizer: TapGestureRecognizer()
+                    ..onTap = () => redirectToBrowser(termConditionURL)),
+            ]),
           ),
         ),
       ],
     );
-  }
-
-  void _handleSignUp(UserProvider userProvider) async {
-    if (!agreeTerms) {
-      showWarningToast('Please accept the terms & conditions');
-      return;
-    }
-    
-    if (formKey.currentState!.validate()) {
-      check().then((internet) async {
-        if (internet) {
-          FocusManager.instance.primaryFocus?.unfocus();
-          await userProvider.registerUser(
-            nameController.text.toString().trim(),
-            mobileNumberController.text.toString().trim(),
-            emailController.text.toString().trim(),
-            dobDate,
-            addressController.text.toString().trim(),
-            _imageFile,
-            context,
-          );
-        } else {
-          showWarningToast("No network connection");
-        }
-      });
-    }
   }
 }

@@ -1,11 +1,8 @@
 import 'dart:async';
-
-import 'package:colourmaster/ui/widget/premium_buttons.dart' as premium;
+import 'package:colourmaster/ui/widget/premium_buttons.dart' as btn;
 import 'package:colourmaster/utils/premium_theme.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:pinput/pinput.dart';
 import 'package:provider/provider.dart';
 
@@ -17,304 +14,262 @@ import '../utils/utilsMethods.dart';
 class PremiumOTPScreen extends StatefulWidget {
   final String userMobile;
   const PremiumOTPScreen(this.userMobile, {super.key});
-  
   @override
-  State<PremiumOTPScreen> createState() => _PremiumOTPScreenState();
+  State<PremiumOTPScreen> createState() => _State();
 }
 
-class _PremiumOTPScreenState extends State<PremiumOTPScreen> {
-  final pinController = TextEditingController();
-  final focusNode = FocusNode();
-  final formKey = GlobalKey<FormState>();
-  bool enableResend = false;
-  int timerMaxSeconds = 30;
-  Timer? timer;
+class _State extends State<PremiumOTPScreen> {
+  final _pin     = TextEditingController();
+  final _focus   = FocusNode();
+  final _formKey = GlobalKey<FormState>();
+  bool _canResend = false;
+  int  _seconds   = 30;
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-      statusBarIconBrightness: Brightness.dark,
+      statusBarIconBrightness: Brightness.light,
       statusBarColor: Colors.transparent,
+      systemNavigationBarColor: AppTheme.black,
     ));
-    
-    // Auto-focus on OTP input
-    startTimer();
+    _startTimer();
   }
 
-  void _resendCode() {
-    setState(() {
-      timerMaxSeconds = 30;
-      enableResend = false;
-    });
-    startTimer();
-  }
-
-  startTimer() {
-    timer?.cancel();
-    timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (timerMaxSeconds != 0) {
-        setState(() {
-          timerMaxSeconds--;
-        });
+  void _startTimer() {
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (_seconds > 0) {
+        setState(() => _seconds--);
       } else {
-        setState(() {
-          enableResend = true;
-        });
-        timer?.cancel();
+        setState(() => _canResend = true);
+        _timer?.cancel();
       }
     });
   }
 
   @override
   void dispose() {
-    timer?.cancel();
-    pinController.dispose();
-    focusNode.dispose();
+    _timer?.cancel();
+    _pin.dispose();
+    _focus.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final defaultPinTheme = PinTheme(
-      width: 56,
-      height: 56,
-      textStyle: PremiumTheme.textTheme.headlineMedium?.copyWith(
-        fontWeight: FontWeight.w600,
-        color: PremiumTheme.textPrimary,
-      ),
+    // Pin box themes
+    final base = PinTheme(
+      width: 64, height: 64,
+      textStyle: const TextStyle(
+          fontSize: 26, fontWeight: FontWeight.w700, color: AppTheme.white),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.grey.shade300,
-          width: 1.5,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: AppTheme.black4,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppTheme.black5, width: 1.5),
       ),
     );
-
-    final focusedPinTheme = defaultPinTheme.copyWith(
-      decoration: defaultPinTheme.decoration?.copyWith(
-        border: Border.all(
-          color: PremiumTheme.primaryColor,
-          width: 2,
-        ),
+    final focused = base.copyWith(
+      decoration: base.decoration?.copyWith(
+        border: Border.all(color: AppTheme.orange, width: 1.5),
+        boxShadow: [BoxShadow(
+            color: AppTheme.orange.withOpacity(0.2), blurRadius: 12)],
+      ),
+    );
+    final submitted = base.copyWith(
+      decoration: base.decoration?.copyWith(
+        color: AppTheme.orange.withOpacity(0.08),
+        border: Border.all(color: AppTheme.orange.withOpacity(0.4)),
       ),
     );
 
     return Scaffold(
-      backgroundColor: PremiumTheme.backgroundColor,
-      body: SafeArea(
-        child: Consumer<UserProvider>(
-          builder: (context, UserProvider userProvider, child) {
-            return Column(
-              children: [
-                // Header section
-                Container(
-                  padding: const EdgeInsets.all(32),
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          IconButton(
-                            onPressed: () => Navigator.pop(context),
-                            icon: Icon(
-                              Icons.arrow_back_rounded,
-                              color: PremiumTheme.textPrimary,
-                              size: 24,
-                            ),
+      resizeToAvoidBottomInset: true,
+      backgroundColor: AppTheme.black,
+      body: Consumer<UserProvider>(
+        builder: (_, provider, __) => Column(
+          children: [
+            // ── Brand / info top ─────────────────────────────────────
+            Expanded(
+              child: SafeArea(
+                bottom: false,
+                child: Stack(
+                  children: [
+                    // Back button — always top-left
+                    Positioned(
+                      top: 16, left: 24,
+                      child: GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: Container(
+                          width: 36, height: 36,
+                          decoration: BoxDecoration(
+                            color: AppTheme.black3,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: AppTheme.black5),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      Icon(
-                        Icons.sms_rounded,
-                        color: PremiumTheme.primaryColor,
-                        size: 48,
-                      ).animate().scale(delay: 200.ms),
-                      const SizedBox(height: 24),
-                      Text(
-                        'Verify Mobile Number',
-                        style: PremiumTheme.textTheme.headlineLarge?.copyWith(
-                          color: PremiumTheme.textPrimary,
-                          fontWeight: FontWeight.w700,
+                          child: const Icon(Icons.arrow_back_ios_rounded,
+                              color: AppTheme.white, size: 16),
                         ),
-                      ).animate().fadeIn(delay: 400.ms),
-                      const SizedBox(height: 8),
-                      Text(
-                        'We sent a verification code to',
-                        style: PremiumTheme.textTheme.bodyLarge?.copyWith(
-                          color: PremiumTheme.textSecondary,
-                        ),
-                      ).animate().fadeIn(delay: 600.ms),
-                      const SizedBox(height: 4),
-                      Text(
-                        '+91 ${widget.userMobile}',
-                        style: PremiumTheme.textTheme.titleLarge?.copyWith(
-                          color: PremiumTheme.primaryColor,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ).animate().fadeIn(delay: 800.ms),
-                    ],
-                  ),
-                ),
-                
-                // OTP form section (dock style)
-                Expanded(
-                  child: Container(
-                    width: double.infinity,
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(30),
-                        topRight: Radius.circular(30),
                       ),
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(32),
-                      child: Form(
-                        key: formKey,
+
+                    // Icon + title — centered in the full top area
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
                         child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const SizedBox(height: 20),
-                            Text(
-                              'Enter Verification Code',
-                              style: PremiumTheme.textTheme.headlineMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: PremiumTheme.textPrimary,
+                            const Text('Verify Mobile',
+                                style: TextStyle(
+                                    fontSize: 26,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppTheme.white)),
+                            const SizedBox(height: 6),
+                            RichText(
+                              text: TextSpan(
+                                style: TextStyle(
+                                    fontSize: 14,
+                                    color: AppTheme.white.withOpacity(0.4)),
+                                children: [
+                                  const TextSpan(text: 'Code sent to '),
+                                  TextSpan(
+                                    text: '+91 ${widget.userMobile}',
+                                    style: const TextStyle(
+                                        color: AppTheme.orange,
+                                        fontWeight: FontWeight.w600)),
+                                ],
                               ),
-                            ).animate().slideX(delay: 1000.ms),
-                            
-                            const SizedBox(height: 32),
-                            
-                            Pinput(
-                              length: 4,
-                              controller: pinController,
-                              focusNode: focusNode,
-                              autofocus: true,
-                              defaultPinTheme: defaultPinTheme,
-                              focusedPinTheme: focusedPinTheme,
-                              submittedPinTheme: focusedPinTheme,
-                              pinputAutovalidateMode: PinputAutovalidateMode.onSubmit,
-                              hapticFeedbackType: HapticFeedbackType.lightImpact,
-                              onCompleted: (pin) => _verifyOTP(),
-                              onChanged: (value) {
-                                if (kDebugMode) {
-                                  print('onChanged: $value');
-                                }
-                              },
-                            ).animate().slideY(delay: 1200.ms),
-                            
-                            const SizedBox(height: 24),
-                            
-                            Text(
-                              'Please enter the 4-digit code sent to your mobile number',
-                              style: PremiumTheme.textTheme.bodyMedium?.copyWith(
-                                color: PremiumTheme.textSecondary,
-                              ),
-                              textAlign: TextAlign.center,
-                            ).animate().fadeIn(delay: 1400.ms),
-                            
-                            const SizedBox(height: 32),
-                            
-                            premium.PremiumButton(
-                              text: 'Verify Code',
-                              isLoading: userProvider.isLoading,
-                              width: double.infinity,
-                              onPressed: () {
-                                if (pinController.text.length != 4) {
-                                  showWarningToast('Please enter complete OTP');
-                                  return;
-                                }
-                                _verifyOTP();
-                              },
-                            ).animate().slideY(delay: 1600.ms),
-                            
-                            const Spacer(),
-                            
-                            TextButton(
-                              onPressed: enableResend ? _resendOTP : null,
-                              child: enableResend
-                                  ? Text(
-                                      'Resend Code',
-                                      style: PremiumTheme.textTheme.bodyMedium?.copyWith(
-                                        color: PremiumTheme.primaryColor,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    )
-                                  : Text(
-                                      'Resend code in ${timerMaxSeconds}s',
-                                      style: PremiumTheme.textTheme.bodyMedium?.copyWith(
-                                        color: PremiumTheme.textTertiary,
-                                      ),
-                                    ),
-                            ).animate().fadeIn(delay: 1800.ms),
-                            
-                            const SizedBox(height: 20),
+                            ),
                           ],
                         ),
                       ),
                     ),
-                  ).animate().slideY(begin: 0.3, delay: 1000.ms),
+                  ],
                 ),
-              ],
-            );
-          },
+              ),
+            ),
+
+            // ── Form sheet — keyboard pushes this up ───────────────────
+            Container(
+              decoration: const BoxDecoration(
+                color: AppTheme.black2,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                border: Border(top: BorderSide(color: AppTheme.black5)),
+              ),
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 28),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Handle
+                        Container(
+                          width: 32, height: 3,
+                          decoration: BoxDecoration(
+                              color: AppTheme.black5,
+                              borderRadius: BorderRadius.circular(2)),
+                        ),
+                        const SizedBox(height: 28),
+
+                        // PIN boxes
+                        Pinput(
+                          length: 4,
+                          controller: _pin,
+                          focusNode: _focus,
+                          autofocus: true,
+                          defaultPinTheme: base,
+                          focusedPinTheme: focused,
+                          submittedPinTheme: submitted,
+                          hapticFeedbackType: HapticFeedbackType.lightImpact,
+                          separatorBuilder: (_) => const SizedBox(width: 12),
+                          onCompleted: (_) => _verify(provider),
+                          onChanged: (_) => setState(() {}),
+                        ),
+                        const SizedBox(height: 10),
+                        Text('Enter the 4-digit code',
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: AppTheme.white.withOpacity(0.3))),
+                        const SizedBox(height: 28),
+
+                        // Verify button
+                        btn.PremiumButton(
+                          text: 'Verify',
+                          isLoading: provider.isLoading,
+                          width: double.infinity,
+                          height: 56,
+                          onPressed: _pin.text.length == 4
+                              ? () => _verify(provider)
+                              : null,
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Resend timer
+                        GestureDetector(
+                          onTap: _canResend ? _resend : null,
+                          child: _canResend
+                              ? const Text('Resend Code',
+                                  style: TextStyle(
+                                      fontSize: 14,
+                                      color: AppTheme.orange,
+                                      fontWeight: FontWeight.w600))
+                              : RichText(
+                                  text: TextSpan(children: [
+                                    TextSpan(
+                                        text: 'Resend code in ',
+                                        style: TextStyle(
+                                            fontSize: 13,
+                                            color: AppTheme.white
+                                                .withOpacity(0.3))),
+                                    TextSpan(
+                                        text: '${_seconds}s',
+                                        style: const TextStyle(
+                                            fontSize: 13,
+                                            color: AppTheme.orange,
+                                            fontWeight: FontWeight.w600)),
+                                  ]),
+                                ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  void _verifyOTP() async {
-    check().then((internet) async {
-      if (internet) {
-        FocusManager.instance.primaryFocus?.unfocus();
-        final userProvider = Provider.of<UserProvider>(context, listen: false);
-        await userProvider.userOTPVerify(
-          widget.userMobile,
-          pinController.text.toString().trim(),
-          context,
-        );
-        pinController.clear();
-        FocusScope.of(context).requestFocus(focusNode);
-      } else {
-        showWarningToast("No network connection");
-      }
-    });
+  void _verify(UserProvider provider) async {
+    if (!await check()) { showWarningToast('No network connection'); return; }
+    FocusManager.instance.primaryFocus?.unfocus();
+    await provider.userOTPVerify(widget.userMobile, _pin.text.trim(), context);
+    _pin.clear();
+    _focus.requestFocus();
   }
 
-  void _resendOTP() async {
-    check().then((internet) async {
-      if (internet) {
-        final userProvider = Provider.of<UserProvider>(context, listen: false);
-        userProvider.isLoading = true;
-        pinController.clear();
-        
-        Login? verifyOTPRes = await ApiService().resendOTP(widget.userMobile);
-        userProvider.isLoading = false;
-        
-        if (verifyOTPRes!.status == 1) {
-          _resendCode();
-          if (!context.mounted) return;
-          showSuccessToast(context, verifyOTPRes.message!.toString());
-        } else {
-          setState(() {
-            pinController.clear();
-          });
-          if (!context.mounted) return;
-          showFailedToast(context, verifyOTPRes.message!.toString());
-        }
-      } else {
-        showWarningToast("No network connection");
-      }
-    });
+  void _resend() async {
+    if (!await check()) { showWarningToast('No network connection'); return; }
+    final provider = Provider.of<UserProvider>(context, listen: false);
+    provider.isLoading = true;
+    _pin.clear();
+    final res = await ApiService().resendOTP(widget.userMobile);
+    provider.isLoading = false;
+    if (!mounted) return;
+    if (res?.status == 1) {
+      setState(() { _seconds = 30; _canResend = false; });
+      _startTimer();
+      showSuccessToast(context, res!.message!);
+    } else {
+      showFailedToast(context, res?.message ?? 'Failed');
+    }
   }
 }

@@ -2,19 +2,14 @@
 
 import 'dart:io';
 
-import 'package:colourmaster/ui/home_screen.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:loading_overlay/loading_overlay.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 
 import '../models/userModel/UserProfile.dart';
 import '../provider/user_provider.dart';
@@ -22,654 +17,479 @@ import '../utils/image_compression.dart';
 import '../utils/sharedPreferenceKey.dart';
 import '../utils/premium_theme.dart';
 import '../utils/utilsMethods.dart';
-import 'widget/premium_cards.dart';
-import 'widget/premium_buttons.dart' as premium;
+import 'widget/app_header.dart';
 import 'widget/premium_shimmer.dart';
-import 'widget/side_bar.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
-
   @override
-  State<StatefulWidget> createState() => _ProfileScreenState();
+  State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  GlobalKey<FormState> formKey = GlobalKey<FormState>();
-  String agreeError = "";
-  bool agreeTerms = false;
-  bool isChanged = false;
-  File? _imageFile;
-  File? _profilePhoto;
+  final _formKey      = GlobalKey<FormState>();
+  final _nameCtrl     = TextEditingController();
+  final _cityCtrl     = TextEditingController();
+  final _emailCtrl    = TextEditingController();
+  final _addressCtrl  = TextEditingController();
+  final _dobCtrl      = TextEditingController();
+  final _mobileCtrl   = TextEditingController();
 
-  TextEditingController nameController = TextEditingController();
-  TextEditingController cityController = TextEditingController();
-  TextEditingController emailController = TextEditingController();
-  TextEditingController addressController = TextEditingController();
-  TextEditingController dobController = TextEditingController();
-  TextEditingController mobileNumberController = TextEditingController();
-  TextEditingController aadharController = TextEditingController();
-  ScrollController scrollController = ScrollController();
-  DateTime lastPickedDate = DateTime.now().subtract(const Duration(days: 1));
-  bool selectedValue = false;
-  int isCheckBoxSelected = -1;
-  String dobDate = "";
-  SharedPreferences? sharedPreferences;
-  var userToken = "";
-  
+  File?   _profilePhoto;
+  String  _token   = '';
+  String  _dobDate = '';
+  DateTime _lastPickedDate = DateTime.now().subtract(const Duration(days: 1));
+
   @override
   void initState() {
     super.initState();
-    initializePreference().whenComplete(() {
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
-      check().then((internet) async {
-        if (internet) {
-          FocusManager.instance.primaryFocus?.unfocus();
-          userProvider.userProfileData = UserProfileData();
-          userProvider.isLoading = true;
-          await userProvider.fetchUserDetails(context, userToken);
-          setUserData();
-        } else {
-          showWarningToast("No network connection");
-        }
-      });
-    });
+    _init();
   }
 
-  setUserData() async {
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    nameController.text = userProvider.userProfileData!.name ?? "";
-    emailController.text = userProvider.userProfileData!.email ?? "";
-    mobileNumberController.text = userProvider.userProfileData!.mobileNumber ?? "";
-    addressController.text = userProvider.userProfileData!.address ?? "";
-    if (userProvider.userProfileData!.dob != null) {
-      dobController.text = getFormattedDate(userProvider.userProfileData!.dob);
-      dobDate = getFormattedDate1(userProvider.userProfileData!.dob);
-    }
-    if (userProvider.userProfileData!.profileImage != null &&
-        userProvider.userProfileData!.profileImage.toString().isNotEmpty) {
-      _profilePhoto = await fileFromImageUrl(userProvider.userProfileData!.profileImage);
-    }
-    setState(() {});
-    userProvider.isLoading = false;
-  }
-
-  Future<void> initializePreference() async {
-    sharedPreferences = await SharedPreferences.getInstance();
-    setState(() {
-      userToken = sharedPreferences!.getString(TOKEN)!;
-    });
-  }
-
-  Future<void> _pickImage(ImageSource source, var isProfilePhoto) async {
-    final pickedImage = await ImagePicker().pickImage(source: source);
-    if (pickedImage != null) {
-      cropImage(pickedImage, isProfilePhoto);
+  Future<void> _init() async {
+    final prefs = await SharedPreferences.getInstance();
+    _token = prefs.getString(TOKEN) ?? '';
+    final p = Provider.of<UserProvider>(context, listen: false);
+    if (await check()) {
+      p.userProfileData = UserProfileData();
+      p.isLoading = true;
+      await p.fetchUserDetails(context, _token);
+      _populate(p);
+    } else {
+      showWarningToast('No network connection');
     }
   }
 
-  Future cropImage(XFile imageFile, bool isProfilePhoto) async {
-    CroppedFile? croppedFile = await ImageCropper().cropImage(
-        compressQuality: 50,
-        compressFormat: ImageCompressFormat.png,
-        sourcePath: imageFile.path,
-        uiSettings: [
-          AndroidUiSettings(
-              toolbarTitle: 'Crop',
-              cropGridColor: Colors.black,
-              initAspectRatio: CropAspectRatioPreset.original,
-              lockAspectRatio: false),
-          IOSUiSettings(title: 'Crop')
-        ]);
-    if (croppedFile != null) {
-      File pickedFile = File(croppedFile.path);
-      if (isProfilePhoto) {
-        _profilePhoto = ImageCompression().compressAndResizeImage(pickedFile);
-      } else {
-        _imageFile = ImageCompression().compressAndResizeImage(pickedFile);
-      }
-      setState(() {
-        if (_imageFile != null) {
-          aadharController.text = _imageFile!.path;
-        }
-        _profilePhoto;
-        _imageFile;
-      });
+  void _populate(UserProvider p) async {
+    _nameCtrl.text    = p.userProfileData?.name ?? '';
+    _emailCtrl.text   = p.userProfileData?.email ?? '';
+    _mobileCtrl.text  = p.userProfileData?.mobileNumber ?? '';
+    _addressCtrl.text = p.userProfileData?.address ?? '';
+    if (p.userProfileData?.dob != null) {
+      _dobCtrl.text = getFormattedDate(p.userProfileData!.dob);
+      _dobDate      = getFormattedDate1(p.userProfileData!.dob);
     }
+    if (p.userProfileData?.profileImage != null &&
+        p.userProfileData!.profileImage.toString().isNotEmpty) {
+      _profilePhoto =
+          await fileFromImageUrl(p.userProfileData!.profileImage);
+    }
+    if (mounted) setState(() {});
+    p.isLoading = false;
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose(); _cityCtrl.dispose(); _emailCtrl.dispose();
+    _addressCtrl.dispose(); _dobCtrl.dispose(); _mobileCtrl.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: PremiumTheme.backgroundColor,
-      drawer: sideBar(context),
-      body: SafeArea(
-        child: Consumer<UserProvider>(
-          builder: (context, UserProvider userProvider, child) {
-            return userProvider.isLoading
-                ? CustomScrollView(
-                    slivers: [
-                      // App Bar
-                      SliverAppBar(
-                        expandedHeight: 60,
-                        floating: false,
-                        pinned: true,
-                        backgroundColor: Colors.white,
-                        elevation: 0,
-                        leading: IconButton(
-                          onPressed: () => Navigator.pop(context),
-                          icon: Icon(
-                            Icons.arrow_back_ios_rounded,
-                            color: PremiumTheme.textPrimary,
-                            size: 20,
-                          ),
-                        ),
-                        flexibleSpace: FlexibleSpaceBar(
-                          centerTitle: true,
-                          title: Text(
-                            'Profile',
-                            style: PremiumTheme.textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: PremiumTheme.textPrimary,
-                            ),
-                          ).animate().fadeIn(delay: 200.ms),
-                        ),
+    final sw = MediaQuery.of(context).size.width;
+    final s  = (sw / 390).clamp(0.8, 1.3);
+
+    return Consumer<UserProvider>(
+      builder: (_, p, __) => LoadingOverlay(
+        isLoading: p.isLoading,
+        color: Colors.black.withOpacity(0.6),
+        progressIndicator: const CircularProgressIndicator(
+            color: AppTheme.orange, strokeWidth: 2.5),
+        child: Scaffold(
+          backgroundColor: AppTheme.black,
+          body: CustomScrollView(
+            slivers: [
+              appHeader(context: context, title: 'Profile'),
+
+              if (p.isLoading)
+                _shimmer(s)
+              else ...[
+                SliverToBoxAdapter(child: _avatarSection(s)),
+                SliverPadding(
+                  padding: EdgeInsets.fromLTRB(
+                      16 * s, 0, 16 * s, 60 * s),
+                  sliver: SliverList(
+                    delegate: SliverChildListDelegate([
+                      Form(
+                        key: _formKey,
+                        child: Column(children: [
+                          _field('Full Name', _nameCtrl, s,
+                              hint: 'Enter your name',
+                              validator: (v) =>
+                                  v!.isEmpty ? 'Name required' : null),
+                          _field('Mobile Number', _mobileCtrl, s,
+                              hint: 'Mobile number',
+                              readOnly: true,
+                              type: TextInputType.phone,
+                              validator: (v) {
+                                if (v!.isEmpty) return 'Required';
+                                if (v.length < 10) return 'Enter valid number';
+                                return null;
+                              }),
+                          _field('Email', _emailCtrl, s,
+                              hint: 'Enter email address',
+                              type: TextInputType.emailAddress,
+                              validator: validateEmail),
+                          _field('Address', _addressCtrl, s,
+                              hint: 'Enter your address',
+                              validator: (v) =>
+                                  v!.isEmpty ? 'Address required' : null),
+                          _dobField(s),
+                          SizedBox(height: 28 * s),
+                          _submitBtn(p, s),
+                        ]),
                       ),
-                      
-                      // Shimmer Content
-                      SliverPadding(
-                        padding: const EdgeInsets.all(24),
-                        sliver: SliverList(
-                          delegate: SliverChildListDelegate([
-                            PremiumShimmer.profileHeader(),
-                            const SizedBox(height: 32),
-                            PremiumShimmer.card(height: 80),
-                            const SizedBox(height: 20),
-                            PremiumShimmer.card(height: 80),
-                            const SizedBox(height: 20),
-                            PremiumShimmer.card(height: 80),
-                            const SizedBox(height: 20),
-                            PremiumShimmer.card(height: 80),
-                            const SizedBox(height: 20),
-                            PremiumShimmer.card(height: 80),
-                            const SizedBox(height: 40),
-                            PremiumShimmer.card(height: 50),
-                          ]),
-                        ),
-                      ),
-                    ],
-                  )
-                : CustomScrollView(
-                slivers: [
-                  // App Bar
-                  SliverAppBar(
-                    expandedHeight: 60,
-                    floating: false,
-                    pinned: true,
-                    backgroundColor: Colors.white,
-                    elevation: 0,
-                    leading: IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: Icon(
-                        Icons.arrow_back_ios_rounded,
-                        color: PremiumTheme.textPrimary,
-                        size: 20,
-                      ),
-                    ),
-                    flexibleSpace: FlexibleSpaceBar(
-                      centerTitle: true,
-                      title: Text(
-                        'Profile',
-                        style: PremiumTheme.textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: PremiumTheme.textPrimary,
-                        ),
-                      ).animate().fadeIn(delay: 200.ms),
-                    ),
+                    ]),
                   ),
-                  
-                  // Content
-                  SliverPadding(
-                    padding: const EdgeInsets.all(24),
-                    sliver: SliverList(
-                      delegate: SliverChildListDelegate([
-                        // Profile Photo Section
-                        _buildProfilePhotoSection(),
-                        const SizedBox(height: 32),
-                        
-                        // Form
-                        Form(
-                          key: formKey,
-                          child: Column(
-                            children: [
-                              _buildInputField('Name', nameController, 'Enter your name', validator: (value) {
-                                if (value!.isEmpty) return 'Name Required';
-                                return null;
-                              }),
-                              const SizedBox(height: 20),
-                              
-                              _buildInputField('Mobile Number', mobileNumberController, 'Enter mobile number', 
-                                readOnly: true, inputType: TextInputType.number, validator: (value) {
-                                if (value!.isEmpty) return 'Mobile Number Required';
-                                if (value.length < 10) return 'Please enter a valid 10 digit mobile number';
-                                return null;
-                              }),
-                              const SizedBox(height: 20),
-                              
-                              _buildInputField('Email ID', emailController, 'Enter email address', 
-                                inputType: TextInputType.emailAddress, validator: validateEmail),
-                              const SizedBox(height: 20),
-                              
-                              _buildInputField('Address', addressController, 'Enter your address', validator: (value) {
-                                if (value!.isEmpty) return 'Address Required';
-                                return null;
-                              }),
-                              const SizedBox(height: 20),
-                              
-                              _buildDateField(),
-                              const SizedBox(height: 40),
-                              
-                              // Submit Button
-                              SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton(
-                                  onPressed: () => _submitForm(userProvider),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: PremiumTheme.primaryColor,
-                                    padding: const EdgeInsets.symmetric(vertical: 16),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    'Update Profile',
-                                    style: PremiumTheme.textTheme.bodyMedium?.copyWith(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ).animate().fadeIn(delay: 600.ms),
-                              const SizedBox(height: 40),
-                            ],
-                          ),
-                        ),
-                      ]),
-                    ),
-                  ),
-                ],
-              );
-          },
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildProfilePhotoSection() {
-    return PremiumCard(
-      child: Column(
-        children: [
-          Stack(
-            children: [
-              Container(
-                width: 100,
-                height: 100,
+  // ── Avatar section ────────────────────────────────────────────────────────────
+  Widget _avatarSection(double s) {
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: 28 * s),
+      child: Column(children: [
+        Stack(children: [
+          Container(
+            width: 88 * s, height: 88 * s,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppTheme.black3,
+              border: Border.all(
+                  color: AppTheme.orange.withOpacity(0.4), width: 2.5),
+            ),
+            child: ClipOval(
+              child: _profilePhoto != null
+                  ? Image.file(_profilePhoto!, fit: BoxFit.cover)
+                  : Icon(Icons.person_rounded,
+                      color: AppTheme.white.withOpacity(0.3),
+                      size: 40 * s),
+            ),
+          ),
+          Positioned(
+            bottom: 0, right: 0,
+            child: GestureDetector(
+              onTap: () => _showPicker(),
+              child: Container(
+                width: 28 * s, height: 28 * s,
                 decoration: BoxDecoration(
+                  color: AppTheme.orange,
                   shape: BoxShape.circle,
-                  color: PremiumTheme.primaryColor.withOpacity(0.1),
+                  border: Border.all(color: AppTheme.black, width: 2),
                 ),
-                child: ClipOval(
-                  child: _profilePhoto == null
-                      ? Icon(
-                          Icons.person_rounded,
-                          color: PremiumTheme.primaryColor,
-                          size: 50,
-                        )
-                      : Image.file(
-                          File(_profilePhoto!.path),
-                          fit: BoxFit.cover,
-                        ),
-                ),
+                child: Icon(Icons.camera_alt_rounded,
+                    color: AppTheme.black, size: 13 * s),
               ),
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: GestureDetector(
-                  onTap: () => _showImagePicker(true),
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: PremiumTheme.primaryColor,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.camera_alt_rounded,
-                      color: Colors.white,
-                      size: 16,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Profile Photo',
-            style: PremiumTheme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            'Tap the camera icon to update',
-            style: PremiumTheme.textTheme.bodySmall?.copyWith(
-              color: PremiumTheme.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    ).animate().fadeIn(delay: 300.ms);
-  }
-
-  Widget _buildInputField(
-    String label,
-    TextEditingController controller,
-    String hint, {
-    bool readOnly = false,
-    TextInputType inputType = TextInputType.text,
-    String? Function(String?)? validator,
-  }) {
-    return PremiumCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: PremiumTheme.textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: PremiumTheme.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextFormField(
-            controller: controller,
-            readOnly: readOnly,
-            keyboardType: inputType,
-            validator: validator,
-            style: PremiumTheme.textTheme.bodyMedium,
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: PremiumTheme.textTheme.bodyMedium?.copyWith(
-                color: PremiumTheme.textTertiary,
-              ),
-              filled: true,
-              fillColor: readOnly ? PremiumTheme.backgroundColor : Colors.white,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: Colors.grey.shade300,
-                  width: 1,
-                ),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: Colors.grey.shade300,
-                  width: 1,
-                ),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: PremiumTheme.primaryColor,
-                  width: 2,
-                ),
-              ),
-              errorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: PremiumTheme.errorColor,
-                  width: 1,
-                ),
-              ),
-              contentPadding: const EdgeInsets.all(16),
-            ),
-          ),
-        ],
-      ),
-    ).animate().fadeIn(delay: 400.ms);
-  }
-
-  Widget _buildDateField() {
-    return PremiumCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Date of Birth',
-            style: PremiumTheme.textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: PremiumTheme.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextFormField(
-            controller: dobController,
-            readOnly: true,
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'Select your Date of Birth';
-              }
-              return null;
-            },
-            style: PremiumTheme.textTheme.bodyMedium,
-            decoration: InputDecoration(
-              hintText: 'DD / MM / YYYY',
-              hintStyle: PremiumTheme.textTheme.bodyMedium?.copyWith(
-                color: PremiumTheme.textTertiary,
-              ),
-              filled: true,
-              fillColor: Colors.white,
-              suffixIcon: Icon(
-                Icons.calendar_today_rounded,
-                color: PremiumTheme.primaryColor,
-                size: 20,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: Colors.grey.shade300,
-                  width: 1,
-                ),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: Colors.grey.shade300,
-                  width: 1,
-                ),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: PremiumTheme.primaryColor,
-                  width: 2,
-                ),
-              ),
-              errorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: PremiumTheme.errorColor,
-                  width: 1,
-                ),
-              ),
-              contentPadding: const EdgeInsets.all(16),
-            ),
-            onTap: () => _selectDate(),
-          ),
-        ],
-      ),
-    ).animate().fadeIn(delay: 500.ms);
-  }
-
-  void _showImagePicker(bool isProfilePhoto) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (BuildContext context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  'Select Photo',
-                  style: PremiumTheme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildImageOption(
-                        icon: Icons.camera_alt_rounded,
-                        label: 'Camera',
-                        onTap: () {
-                          Navigator.pop(context);
-                          _pickImage(ImageSource.camera, isProfilePhoto);
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _buildImageOption(
-                        icon: Icons.photo_library_rounded,
-                        label: 'Gallery',
-                        onTap: () {
-                          Navigator.pop(context);
-                          _pickImage(ImageSource.gallery, isProfilePhoto);
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-              ],
-            ),
-          ),
-        );
-      },
+        ]),
+        SizedBox(height: 12 * s),
+        Text(_nameCtrl.text.isNotEmpty ? _nameCtrl.text : 'Your Name',
+            style: TextStyle(
+                fontSize: 17 * s,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.white)),
+        SizedBox(height: 3 * s),
+        Text(_mobileCtrl.text.isNotEmpty
+                ? '+91 ${_mobileCtrl.text}'
+                : 'Colour Master Member',
+            style: TextStyle(
+                fontSize: 13 * s,
+                color: AppTheme.white.withOpacity(0.35))),
+        SizedBox(height: 20 * s),
+        Container(height: 1,
+            color: AppTheme.black5.withOpacity(0.5)),
+      ]),
     );
   }
 
-  Widget _buildImageOption({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
+  // ── Form field ────────────────────────────────────────────────────────────────
+  Widget _field(
+    String label,
+    TextEditingController ctrl,
+    double s, {
+    String hint = '',
+    bool readOnly = false,
+    TextInputType type = TextInputType.text,
+    String? Function(String?)? validator,
   }) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 12 * s),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label,
+            style: TextStyle(
+                fontSize: 11 * s,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.white.withOpacity(0.4),
+                letterSpacing: 0.4)),
+        SizedBox(height: 6 * s),
+        TextFormField(
+          controller: ctrl,
+          readOnly: readOnly,
+          keyboardType: type,
+          validator: validator,
+          style: TextStyle(fontSize: 14 * s, color: AppTheme.white),
+          decoration: InputDecoration(
+            hintText: hint,
+            filled: true,
+            fillColor: readOnly ? AppTheme.black3 : AppTheme.black2,
+            hintStyle: TextStyle(
+                fontSize: 13 * s,
+                color: AppTheme.white.withOpacity(0.2)),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10 * s),
+              borderSide: BorderSide(color: AppTheme.black5),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10 * s),
+              borderSide: BorderSide(color: AppTheme.black5),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10 * s),
+              borderSide:
+                  BorderSide(color: AppTheme.orange, width: 1.5),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10 * s),
+              borderSide: BorderSide(color: AppTheme.red),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10 * s),
+              borderSide:
+                  BorderSide(color: AppTheme.red, width: 1.5),
+            ),
+            contentPadding: EdgeInsets.symmetric(
+                horizontal: 14 * s, vertical: 14 * s),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  // ── DOB field ─────────────────────────────────────────────────────────────────
+  Widget _dobField(double s) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 12 * s),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('Date of Birth',
+            style: TextStyle(
+                fontSize: 11 * s,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.white.withOpacity(0.4),
+                letterSpacing: 0.4)),
+        SizedBox(height: 6 * s),
+        TextFormField(
+          controller: _dobCtrl,
+          readOnly: true,
+          onTap: _pickDate,
+          validator: (v) =>
+              (v == null || v.isEmpty) ? 'Date of birth required' : null,
+          style: TextStyle(fontSize: 14 * s, color: AppTheme.white),
+          decoration: InputDecoration(
+            hintText: 'DD / MM / YYYY',
+            filled: true,
+            fillColor: AppTheme.black2,
+            hintStyle: TextStyle(
+                fontSize: 13 * s,
+                color: AppTheme.white.withOpacity(0.2)),
+            suffixIcon: Icon(Icons.calendar_today_outlined,
+                color: AppTheme.white.withOpacity(0.3),
+                size: 16 * s),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10 * s),
+              borderSide: BorderSide(color: AppTheme.black5),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10 * s),
+              borderSide: BorderSide(color: AppTheme.black5),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10 * s),
+              borderSide:
+                  BorderSide(color: AppTheme.orange, width: 1.5),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10 * s),
+              borderSide: BorderSide(color: AppTheme.red),
+            ),
+            contentPadding: EdgeInsets.symmetric(
+                horizontal: 14 * s, vertical: 14 * s),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  // ── Submit button ─────────────────────────────────────────────────────────────
+  Widget _submitBtn(UserProvider p, double s) {
+    return GestureDetector(
+      onTap: () => _submit(p),
+      child: Container(
+        width: double.infinity,
+        height: 52 * s,
+        decoration: BoxDecoration(
+          color: AppTheme.orange,
+          borderRadius: BorderRadius.circular(12 * s),
+        ),
+        alignment: Alignment.center,
+        child: Text('Update Profile',
+            style: TextStyle(
+                fontSize: 15 * s,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.black)),
+      ),
+    );
+  }
+
+  // ── Shimmer ───────────────────────────────────────────────────────────────────
+  SliverPadding _shimmer(double s) {
+    return SliverPadding(
+      padding: EdgeInsets.all(16 * s),
+      sliver: SliverList(
+        delegate: SliverChildListDelegate([
+          Center(
+            child: Container(
+              width: 88 * s, height: 88 * s,
+              decoration: BoxDecoration(
+                  shape: BoxShape.circle, color: AppTheme.black3),
+            ),
+          ),
+          SizedBox(height: 24 * s),
+          ...List.generate(5, (_) => Padding(
+            padding: EdgeInsets.only(bottom: 12 * s),
+            child: PremiumShimmer.card(height: 56 * s),
+          )),
+          PremiumShimmer.card(height: 52 * s),
+        ]),
+      ),
+    );
+  }
+
+  // ── Image picker ──────────────────────────────────────────────────────────────
+  void _showPicker() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.black2,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: 36, height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                  color: AppTheme.black5,
+                  borderRadius: BorderRadius.circular(2)),
+            ),
+            Text('Update Photo',
+                style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.white)),
+            const SizedBox(height: 20),
+            Row(children: [
+              Expanded(child: _pickerOption(
+                  Icons.camera_alt_rounded, 'Camera',
+                  () { Navigator.pop(context);
+                       _pickImage(ImageSource.camera); })),
+              const SizedBox(width: 12),
+              Expanded(child: _pickerOption(
+                  Icons.photo_library_rounded, 'Gallery',
+                  () { Navigator.pop(context);
+                       _pickImage(ImageSource.gallery); })),
+            ]),
+            const SizedBox(height: 8),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _pickerOption(IconData icon, String label, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.symmetric(vertical: 18),
         decoration: BoxDecoration(
-          color: PremiumTheme.primaryColor.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: PremiumTheme.primaryColor.withOpacity(0.2),
-          ),
+          color: AppTheme.black3,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppTheme.black5),
         ),
-        child: Column(
-          children: [
-            Icon(
-              icon,
-              color: PremiumTheme.primaryColor,
-              size: 32,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: PremiumTheme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w500,
-                color: PremiumTheme.primaryColor,
-              ),
-            ),
-          ],
-        ),
+        child: Column(children: [
+          Icon(icon, color: AppTheme.orange, size: 28),
+          const SizedBox(height: 8),
+          Text(label,
+              style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: AppTheme.white)),
+        ]),
       ),
     );
   }
 
-  Future<void> _selectDate() async {
-    DateTime? pickedDate = await showDatePicker(
-      context: context,
-      initialDate: lastPickedDate,
-      firstDate: DateTime(1900),
-      lastDate: DateTime.now().subtract(const Duration(days: 1)),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: PremiumTheme.primaryColor,
-              onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: PremiumTheme.textPrimary,
-            ),
-          ),
-          child: child!,
-        );
-      },
+  Future<void> _pickImage(ImageSource source) async {
+    final picked = await ImagePicker().pickImage(source: source);
+    if (picked == null) return;
+    final cropped = await ImageCropper().cropImage(
+      compressQuality: 50,
+      compressFormat: ImageCompressFormat.png,
+      sourcePath: picked.path,
+      uiSettings: [
+        AndroidUiSettings(
+            toolbarTitle: 'Crop',
+            cropGridColor: Colors.black,
+            initAspectRatio: CropAspectRatioPreset.original,
+            lockAspectRatio: false),
+        IOSUiSettings(title: 'Crop'),
+      ],
     );
-    
-    if (pickedDate != null) {
-      lastPickedDate = pickedDate;
-      String formattedDate = DateFormat('dd/MM/yyyy').format(pickedDate);
-      dobDate = DateFormat('yyyy/MM/dd').format(pickedDate);
-      dobController.text = formattedDate;
+    if (cropped != null) {
+      setState(() {
+        _profilePhoto =
+            ImageCompression().compressAndResizeImage(File(cropped.path));
+      });
     }
   }
 
-  Future<void> _submitForm(UserProvider userProvider) async {
-    if (formKey.currentState!.validate()) {
-      check().then((internet) async {
-        if (internet) {
-          FocusManager.instance.primaryFocus?.unfocus();
-          await userProvider.updateUserProfile(
-            userToken,
-            nameController.text.toString().trim(),
-            mobileNumberController.text.toString().trim(),
-            emailController.text.toString().trim(),
-            dobDate,
-            addressController.text.toString().trim(),
-            _imageFile,
-            _profilePhoto,
-            context,
-          );
-        } else {
-          showWarningToast("No network connection");
-        }
-      });
+  Future<void> _pickDate() async {
+    final d = await showDatePicker(
+      context: context,
+      initialDate: _lastPickedDate,
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now().subtract(const Duration(days: 1)),
+    );
+    if (d != null) {
+      _lastPickedDate = d;
+      _dobCtrl.text   = DateFormat('dd/MM/yyyy').format(d);
+      _dobDate        = DateFormat('yyyy/MM/dd').format(d);
+      setState(() {});
     }
+  }
+
+  Future<void> _submit(UserProvider p) async {
+    if (!_formKey.currentState!.validate()) return;
+    if (!await check()) { showWarningToast('No network connection'); return; }
+    FocusManager.instance.primaryFocus?.unfocus();
+    await p.updateUserProfile(
+      _token,
+      _nameCtrl.text.trim(),
+      _mobileCtrl.text.trim(),
+      _emailCtrl.text.trim(),
+      _dobDate,
+      _addressCtrl.text.trim(),
+      null,
+      _profilePhoto,
+      context,
+    );
   }
 }
