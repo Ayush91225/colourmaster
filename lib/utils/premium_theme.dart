@@ -3,38 +3,39 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  // ── Pitch black palette ──────────────────────────────────────────────────────
-  static const Color black      = Color(0xFF000000);
-  static const Color black1     = Color(0xFF0A0A0A);
-  static const Color black2     = Color(0xFF111111);
-  static const Color black3     = Color(0xFF1A1A1A);
-  static const Color black4     = Color(0xFF222222);
-  static const Color black5     = Color(0xFF2A2A2A);
+  // ── Light palette ─────────────────────────────────────────────────────────────
+  static const Color black      = Color(0xFFF5F5F0); // off-white background
+  static const Color black1     = Color(0xFFF0F0EB); // slightly deeper bg
+  static const Color black2     = Color(0xFFFFFFFF); // card surface (pure white)
+  static const Color black3     = Color(0xFFEEEEE8); // subtle card / input bg
+  static const Color black4     = Color(0xFFE5E5DF); // icon bg / muted surface
+  static const Color black5     = Color(0xFFD8D8D2); // borders / dividers
 
-  // ── Orange accent (replaces gold) ───────────────────────────────────────────
-  static const Color orange      = Color(0xFFFF6B00); // vivid orange
-  static const Color orangeLight = Color(0xFFFF8C3A); // lighter orange
-  static const Color orangeDark  = Color(0xFFCC5500); // pressed state
+  // ── Orange accent ─────────────────────────────────────────────────────────────
+  static const Color orange      = Color(0xFFFF6B00);
+  static const Color orangeLight = Color(0xFFFF8C3A);
+  static const Color orangeDark  = Color(0xFFCC5500);
 
-  // Keep gold aliases pointing to orange for backward compat
   static const Color gold        = orange;
   static const Color goldLight   = orangeLight;
   static const Color goldDark    = orangeDark;
 
-  static const Color white      = Color(0xFFFFFFFF);
-  static const Color white90    = Color(0xE6FFFFFF);
-  static const Color white60    = Color(0x99FFFFFF);
-  static const Color white30    = Color(0x4DFFFFFF);
-  static const Color white10    = Color(0x1AFFFFFF);
-  static const Color white06    = Color(0x0FFFFFFF);
+  // ── Text colours (dark on light bg) ──────────────────────────────────────────
+  static const Color white      = Color(0xFF1A1A1A); // primary text
+  static const Color white90    = Color(0xFF2A2A2A);
+  static const Color white60    = Color(0xFF666666); // secondary text
+  static const Color white30    = Color(0xFF999999); // muted text
+  static const Color white10    = Color(0xFFCCCCCC);
+  static const Color white06    = Color(0xFFE0E0E0);
 
-  static const Color green      = Color(0xFF22C55E);
-  static const Color greenDim   = Color(0xFF16A34A);
-  static const Color amber      = Color(0xFFF59E0B);
-  static const Color red        = Color(0xFFEF4444);
-  static const Color blue       = Color(0xFF3B82F6);
+  // ── Status colours ────────────────────────────────────────────────────────────
+  static const Color green      = Color(0xFF16A34A);
+  static const Color greenDim   = Color(0xFF15803D);
+  static const Color amber      = Color(0xFFD97706);
+  static const Color red        = Color(0xFFDC2626);
+  static const Color blue       = Color(0xFF2563EB);
 
-  // ── Semantic aliases ─────────────────────────────────────────────────────────
+  // ── Semantic aliases ──────────────────────────────────────────────────────────
   static const Color bg              = black1;
   static const Color surface         = black2;
   static const Color surfaceElevated = black3;
@@ -42,13 +43,13 @@ class AppTheme {
   static const Color accent          = orange;
   static const Color accentSoft      = Color(0x1AFF6B00);
 
-  static const Color textPrimary     = white;
+  static const Color textPrimary     = white;      // dark text
   static const Color textSecondary   = white60;
   static const Color textMuted       = white30;
   static const Color textTertiary    = white30;
-  static const Color textOnDark      = black;
+  static const Color textOnDark      = Color(0xFFFFFFFF); // text on orange buttons
 
-  // ── Backward compat aliases ──────────────────────────────────────────────────
+  // ── Backward compat aliases ───────────────────────────────────────────────────
   static const Color navy            = black;
   static const Color navyLight       = black3;
   static const Color primaryColor    = black;
@@ -59,9 +60,9 @@ class AppTheme {
   static const Color warningColor    = amber;
   static const Color errorColor      = red;
   static const Color infoColor       = blue;
-  static const Color textOnPrimary   = white;
+  static const Color textOnPrimary   = Color(0xFFFFFFFF);
   static const Color primary         = black;
-  static const Color primaryDark     = black;
+  static const Color primaryDark     = black1;
   static const Color primaryLight    = black3;
   static const Color secondaryColor  = orange;
   static const Color secondaryDark   = orangeDark;
@@ -82,9 +83,9 @@ class AppTheme {
   );
 
   static const BoxShadow cardShadow = BoxShadow(
-    color: Color(0x40000000),
-    blurRadius: 16,
-    offset: Offset(0, 4),
+    color: Color(0x14000000),
+    blurRadius: 12,
+    offset: Offset(0, 2),
   );
 
   static const BoxShadow goldShadow = BoxShadow(
@@ -97,7 +98,7 @@ class AppTheme {
   static const BorderRadius buttonRadius = BorderRadius.all(Radius.circular(12));
   static const BorderRadius inputRadius  = BorderRadius.all(Radius.circular(12));
 
-  // ── Typography ───────────────────────────────────────────────────────────────
+  // ── Typography ────────────────────────────────────────────────────────────────
   static TextTheme get textTheme => GoogleFonts.interTextTheme().copyWith(
         displayLarge:   _t(32, FontWeight.w700, white,   1.2),
         displayMedium:  _t(28, FontWeight.w700, white,   1.2),
@@ -116,19 +117,19 @@ class AppTheme {
   static TextStyle _t(double size, FontWeight w, Color c, double h) =>
       GoogleFonts.inter(fontSize: size, fontWeight: w, color: c, height: h);
 
-  // ── Material theme ───────────────────────────────────────────────────────────
+  // ── Material theme ────────────────────────────────────────────────────────────
   static ThemeData get lightTheme => ThemeData(
         useMaterial3: true,
-        brightness: Brightness.dark,
-        colorScheme: const ColorScheme.dark(
+        brightness: Brightness.light,
+        colorScheme: const ColorScheme.light(
           primary: orange,
           secondary: orange,
           surface: black2,
           error: red,
-          onPrimary: white,
-          onSecondary: white,
+          onPrimary: Color(0xFFFFFFFF),
+          onSecondary: Color(0xFFFFFFFF),
           onSurface: white,
-          onError: white,
+          onError: Color(0xFFFFFFFF),
         ),
         scaffoldBackgroundColor: black1,
         cardColor: black2,
@@ -140,15 +141,15 @@ class AppTheme {
           elevation: 0,
           centerTitle: true,
           titleTextStyle: _t(17, FontWeight.w600, white, 1.4),
-          systemOverlayStyle: SystemUiOverlayStyle(
+          systemOverlayStyle: const SystemUiOverlayStyle(
             statusBarColor: Colors.transparent,
-            statusBarIconBrightness: Brightness.light,
+            statusBarIconBrightness: Brightness.dark,
           ),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: orange,
-            foregroundColor: white,
+            foregroundColor: const Color(0xFFFFFFFF),
             elevation: 0,
             shape: const RoundedRectangleBorder(borderRadius: buttonRadius),
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
@@ -156,7 +157,7 @@ class AppTheme {
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: black4,
+          fillColor: black3,
           border: OutlineInputBorder(
               borderRadius: inputRadius,
               borderSide: const BorderSide(color: black5)),
@@ -181,7 +182,7 @@ class AppTheme {
         checkboxTheme: CheckboxThemeData(
           fillColor: WidgetStateProperty.resolveWith((s) =>
               s.contains(WidgetState.selected) ? orange : Colors.transparent),
-          checkColor: WidgetStateProperty.all(white),
+          checkColor: WidgetStateProperty.all(const Color(0xFFFFFFFF)),
           side: const BorderSide(color: black5, width: 1.5),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
         ),
@@ -198,16 +199,16 @@ class AppTheme {
         ),
         datePickerTheme: DatePickerThemeData(
           backgroundColor: black2,
-          headerBackgroundColor: black,
-          headerForegroundColor: white,
+          headerBackgroundColor: orange,
+          headerForegroundColor: Color(0xFFFFFFFF),
           dayForegroundColor: WidgetStateProperty.resolveWith((s) =>
-              s.contains(WidgetState.selected) ? black : white),
+              s.contains(WidgetState.selected) ? const Color(0xFFFFFFFF) : white),
           dayBackgroundColor: WidgetStateProperty.resolveWith((s) =>
               s.contains(WidgetState.selected) ? orange : Colors.transparent),
           todayForegroundColor: WidgetStateProperty.all(orange),
           todayBorder: const BorderSide(color: orange),
           yearForegroundColor: WidgetStateProperty.resolveWith((s) =>
-              s.contains(WidgetState.selected) ? white : white),
+              s.contains(WidgetState.selected) ? const Color(0xFFFFFFFF) : white),
           yearBackgroundColor: WidgetStateProperty.resolveWith((s) =>
               s.contains(WidgetState.selected) ? orange : Colors.transparent),
           surfaceTintColor: Colors.transparent,

@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../utils/premium_theme.dart';
 
-/// Shared sliver app bar used across all screens.
-/// - [title]: screen name
-/// - [onMenuTap]: if provided, shows hamburger (main tabs). If null, shows back arrow (pushed screens).
-/// - [actions]: optional trailing widgets
 SliverAppBar appHeader({
   required BuildContext context,
   required String title,
@@ -57,8 +53,7 @@ SliverAppBar appHeader({
     actions: actions,
     bottom: PreferredSize(
       preferredSize: const Size.fromHeight(1),
-      child: Container(
-          height: 1, color: AppTheme.black5.withOpacity(0.5)),
+      child: Container(height: 1, color: AppTheme.black5),
     ),
   );
 }

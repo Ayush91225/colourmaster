@@ -19,8 +19,7 @@ class _State extends State<PremiumSplashScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
   late Animation<double> _fade;
-  late Animation<double> _scale;
-  late Animation<double> _taglineFade;
+  late Animation<double> _slide;
   late Animation<double> _loaderFade;
 
   @override
@@ -29,29 +28,20 @@ class _State extends State<PremiumSplashScreen>
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
+      statusBarIconBrightness: Brightness.dark,
       systemNavigationBarColor: AppTheme.black,
     ));
 
-    _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1400));
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
 
     _fade = CurvedAnimation(
-        parent: _ctrl,
-        curve: const Interval(0.0, 0.6, curve: Curves.easeOut));
+        parent: _ctrl, curve: const Interval(0.0, 0.65, curve: Curves.easeOut));
 
-    _scale = Tween(begin: 0.8, end: 1.0).animate(
-        CurvedAnimation(
-            parent: _ctrl,
-            curve: const Interval(0.0, 0.6, curve: Curves.easeOutBack)));
-
-    _taglineFade = CurvedAnimation(
-        parent: _ctrl,
-        curve: const Interval(0.4, 0.8, curve: Curves.easeOut));
+    _slide = Tween(begin: 16.0, end: 0.0).animate(
+        CurvedAnimation(parent: _ctrl, curve: const Interval(0.0, 0.65, curve: Curves.easeOut)));
 
     _loaderFade = CurvedAnimation(
-        parent: _ctrl,
-        curve: const Interval(0.7, 1.0, curve: Curves.easeOut));
+        parent: _ctrl, curve: const Interval(0.65, 1.0, curve: Curves.easeOut));
 
     _ctrl.forward();
     _navigate();
@@ -59,7 +49,7 @@ class _State extends State<PremiumSplashScreen>
 
   Future<void> _navigate() async {
     final prefs = await SharedPreferences.getInstance();
-    await Future.delayed(const Duration(milliseconds: 2400));
+    await Future.delayed(const Duration(milliseconds: 2200));
     if (!mounted) return;
     if (prefs.getBool(LOGIN_STATUS) != true) {
       Navigator.of(context).pushAndRemoveUntil(
@@ -85,27 +75,84 @@ class _State extends State<PremiumSplashScreen>
   @override
   Widget build(BuildContext context) {
     final sw = MediaQuery.of(context).size.width;
+    final sh = MediaQuery.of(context).size.height;
     final s  = (sw / 390).clamp(0.8, 1.3);
 
     return Scaffold(
       backgroundColor: AppTheme.black,
       body: Stack(
         children: [
-          // Subtle orange radial glow behind logo
-          Positioned.fill(
-            child: FadeTransition(
-              opacity: _fade,
-              child: Center(
-                child: Container(
-                  width: 260 * s,
-                  height: 260 * s,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      colors: [
-                        AppTheme.orange.withOpacity(0.07),
-                        Colors.transparent,
-                      ],
+          // ── Centre content ──────────────────────────────────────────────────
+          Center(
+            child: AnimatedBuilder(
+              animation: _ctrl,
+              builder: (_, __) => Opacity(
+                opacity: _fade.value,
+                child: Transform.translate(
+                  offset: Offset(0, _slide.value),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Logo
+                      Container(
+                        width: 80 * s,
+                        height: 80 * s,
+                        decoration: BoxDecoration(
+                          color: AppTheme.black2,
+                          borderRadius: BorderRadius.circular(22 * s),
+                          border: Border.all(color: AppTheme.black5),
+                          boxShadow: const [AppTheme.cardShadow],
+                        ),
+                        padding: EdgeInsets.all(18 * s),
+                        child: Image.asset('assets/images/logo.png', fit: BoxFit.contain),
+                      ),
+
+                      SizedBox(height: 20 * s),
+
+                      // App name
+                      Text(
+                        'Colour Master',
+                        style: TextStyle(
+                          fontSize: 22 * s,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.white,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+
+                      SizedBox(height: 6 * s),
+
+                      // Tagline
+                      Text(
+                        'Rewards & Loyalty',
+                        style: TextStyle(
+                          fontSize: 13 * s,
+                          fontWeight: FontWeight.w400,
+                          color: AppTheme.white30,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // ── Bottom loader ───────────────────────────────────────────────────
+          Positioned(
+            bottom: sh * 0.1,
+            left: 0, right: 0,
+            child: AnimatedBuilder(
+              animation: _loaderFade,
+              builder: (_, __) => Opacity(
+                opacity: _loaderFade.value,
+                child: Center(
+                  child: SizedBox(
+                    width: 20 * s, height: 20 * s,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 1.5,
+                      valueColor: AlwaysStoppedAnimation(AppTheme.orange),
                     ),
                   ),
                 ),
@@ -113,106 +160,26 @@ class _State extends State<PremiumSplashScreen>
             ),
           ),
 
-          // Main content
-          Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Logo
-                FadeTransition(
-                  opacity: _fade,
-                  child: ScaleTransition(
-                    scale: _scale,
-                    child: Container(
-                      width: 88 * s,
-                      height: 88 * s,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppTheme.black2,
-                        border: Border.all(
-                            color: AppTheme.orange.withOpacity(0.35),
-                            width: 1.5),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppTheme.orange.withOpacity(0.12),
-                            blurRadius: 40,
-                            spreadRadius: 8,
-                          ),
-                        ],
-                      ),
-                      padding: EdgeInsets.all(20 * s),
-                      child: Image.asset('assets/images/logo.png',
-                          fit: BoxFit.contain),
-                    ),
-                  ),
-                ),
-
-                SizedBox(height: 28 * s),
-
-                // App name
-                FadeTransition(
-                  opacity: _fade,
+          // ── Bottom brand line ───────────────────────────────────────────────
+          Positioned(
+            bottom: sh * 0.05,
+            left: 0, right: 0,
+            child: AnimatedBuilder(
+              animation: _loaderFade,
+              builder: (_, __) => Opacity(
+                opacity: _loaderFade.value,
+                child: Center(
                   child: Text(
-                    'COLOUR MASTER',
+                    'by Maajasolpaints',
                     style: TextStyle(
-                      fontSize: 17 * s,
-                      fontWeight: FontWeight.w800,
-                      color: AppTheme.white,
-                      letterSpacing: 5,
+                      fontSize: 11 * s,
+                      color: AppTheme.white30,
+                      fontWeight: FontWeight.w400,
+                      letterSpacing: 0.3,
                     ),
                   ),
                 ),
-
-                SizedBox(height: 10 * s),
-
-                // Orange divider line
-                FadeTransition(
-                  opacity: _taglineFade,
-                  child: Container(
-                    width: 32 * s,
-                    height: 1.5,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(colors: [
-                        Colors.transparent,
-                        AppTheme.orange,
-                        Colors.transparent,
-                      ]),
-                    ),
-                  ),
-                ),
-
-                SizedBox(height: 10 * s),
-
-                // Tagline
-                FadeTransition(
-                  opacity: _taglineFade,
-                  child: Text(
-                    'REWARDS & LOYALTY',
-                    style: TextStyle(
-                      fontSize: 10 * s,
-                      fontWeight: FontWeight.w500,
-                      color: AppTheme.white.withOpacity(0.35),
-                      letterSpacing: 3.5,
-                    ),
-                  ),
-                ),
-
-                SizedBox(height: 72 * s),
-
-                // Loader
-                FadeTransition(
-                  opacity: _loaderFade,
-                  child: SizedBox(
-                    width: 18 * s,
-                    height: 18 * s,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 1.5,
-                      valueColor: AlwaysStoppedAnimation(
-                          AppTheme.orange.withOpacity(0.5)),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ],

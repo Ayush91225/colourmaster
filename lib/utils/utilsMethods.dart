@@ -298,139 +298,104 @@ Future<File> fileFromImageUrl(var url) async {
 logOutDialog(BuildContext context) async {
   return showDialog(
     barrierDismissible: false,
+    barrierColor: Colors.black.withOpacity(0.5),
     context: context,
     builder: (BuildContext dialogContext) => Dialog(
       backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 32),
       child: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
+          color: const Color(0xFFF5F5F0),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: const Color(0xFFD8D8D2)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 64,
-              height: 64,
+              width: 60,
+              height: 60,
               decoration: BoxDecoration(
-                color: ColorConstants.errorTextColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
+                color: const Color(0xFFFF6B00).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xFFFF6B00).withOpacity(0.2)),
               ),
-              child: Icon(
-                Icons.logout_rounded,
-                color: ColorConstants.errorTextColor,
-                size: 32,
-              ),
+              child: const Icon(Icons.logout_rounded, color: Color(0xFFFF6B00), size: 28),
             ),
-            const SizedBox(height: 24),
-            Text(
-              'Logout',
+            const SizedBox(height: 20),
+            const Text(
+              'Log out?',
               style: TextStyle(
-                fontSize: 24,
+                fontSize: 20,
                 fontWeight: FontWeight.w700,
-                color: ColorConstants.blackColor,
-                fontFamily: 'Outfit',
+                color: Color(0xFF1A1A1A),
               ),
             ),
-            const SizedBox(height: 12),
-            Text(
-              'Are you sure you want to logout from Color Master?',
+            const SizedBox(height: 8),
+            const Text(
+              'You will be signed out of your Colour Master account.',
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 14,
                 fontWeight: FontWeight.w400,
-                color: ColorConstants.blackButtonColor.withOpacity(0.7),
-                fontFamily: 'Outfit',
+                color: Color(0xFF999999),
+                height: 1.5,
               ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 32),
-            Row(
-              children: [
-                Expanded(
+            const SizedBox(height: 28),
+            Row(children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(dialogContext),
                   child: Container(
-                    height: 52,
+                    height: 50,
                     decoration: BoxDecoration(
-                      border: Border.all(color: const Color(0xFF6C5CE7), width: 1.5),
-                      borderRadius: BorderRadius.circular(16),
+                      color: const Color(0xFFEEEEE8),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFD8D8D2)),
                     ),
-                    child: TextButton(
-                      onPressed: () => Navigator.pop(dialogContext),
-                      style: TextButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      child: Text(
-                        'Cancel',
+                    alignment: Alignment.center,
+                    child: const Text('Cancel',
                         style: TextStyle(
-                          color: const Color(0xFF6C5CE7),
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
-                          fontFamily: 'Outfit',
-                        ),
-                      ),
-                    ),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF666666))),
                   ),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () async {
+                    final navigator = Navigator.of(context);
+                    final ok = await check();
+                    final token = await getUserToken();
+                    if (!context.mounted) return;
+                    navigator.pop();
+                    if (ok) {
+                      Provider.of<UserProvider>(context, listen: false)
+                          .userLogout(token, context);
+                    } else {
+                      showWarningToast('No network connection');
+                    }
+                  },
                   child: Container(
-                    height: 52,
+                    height: 50,
                     decoration: BoxDecoration(
-                      color: ColorConstants.errorTextColor,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: ColorConstants.errorTextColor.withOpacity(0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
+                      color: const Color(0xFFFF6B00),
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                    child: TextButton(
-                      onPressed: () async {
-                        Navigator.pop(context);
-                        check().then((internet) async {
-                          getUserToken().then((userToken) async {
-                            Navigator.of(dialogContext).pop();
-                            final userProvider = Provider.of<UserProvider>(
-                                dialogContext,
-                                listen: false);
-                            if (internet) {
-                              userProvider.userLogout(userToken, context);
-                            } else {
-                              showWarningToast("No network connection");
-                            }
-                          });
-                        });
-                      },
-                      style: TextButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      child: Text(
-                        'Logout',
+                    alignment: Alignment.center,
+                    child: const Text('Log out',
                         style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
-                          fontFamily: 'Outfit',
-                        ),
-                      ),
-                    ),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white)),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ]),
           ],
         ),
       ),

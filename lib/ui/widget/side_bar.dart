@@ -17,7 +17,7 @@ import '../profile_screen.dart';
 Widget sideBar(BuildContext context) {
   final sw = MediaQuery.of(context).size.width;
   return Drawer(
-    backgroundColor: AppTheme.black,
+    backgroundColor: AppTheme.black2,
     width: sw * 0.78,
     child: const _SideBarContent(),
   );
@@ -63,38 +63,30 @@ class _SideBarContentState extends State<_SideBarContent> {
               _section('NAVIGATE', s),
               _item(context, Icons.home_outlined, 'Home', s,
                   () => Navigator.pushReplacement(context,
-                      MaterialPageRoute(
-                          builder: (_) => const MainScreen(0, '')))),
+                      MaterialPageRoute(builder: (_) => const MainScreen(0, '')))),
               _item(context, Icons.person_outline_rounded, 'Profile', s,
                   () => Navigator.push(context,
-                      MaterialPageRoute(
-                          builder: (_) => const ProfileScreen()))),
+                      MaterialPageRoute(builder: (_) => const ProfileScreen()))),
               SizedBox(height: 4 * s),
               _section('REWARDS', s),
               _item(context, Icons.account_balance_outlined, 'Cash Redeem', s,
                   () => Navigator.push(context,
-                      MaterialPageRoute(
-                          builder: (_) => const MainScreen(4, '')))),
+                      MaterialPageRoute(builder: (_) => const MainScreen(4, '')))),
               _item(context, Icons.history_outlined, 'Cash History', s,
                   () => Navigator.push(context,
-                      MaterialPageRoute(
-                          builder: (_) => const CashRedeemHistoryScreen()))),
+                      MaterialPageRoute(builder: (_) => const CashRedeemHistoryScreen()))),
               _item(context, Icons.inventory_2_outlined, 'Product Points', s,
                   () => Navigator.push(context,
-                      MaterialPageRoute(
-                          builder: (_) => const ProductRedeemPointScreen()))),
+                      MaterialPageRoute(builder: (_) => const ProductRedeemPointScreen()))),
               _item(context, Icons.qr_code_outlined, 'Product QR History', s,
                   () => Navigator.push(context,
-                      MaterialPageRoute(
-                          builder: (_) => const ProductQRRedeemHistoryScreen()))),
+                      MaterialPageRoute(builder: (_) => const ProductQRRedeemHistoryScreen()))),
               _item(context, Icons.card_giftcard_outlined, 'Gift Redeem', s,
                   () => Navigator.push(context,
-                      MaterialPageRoute(
-                          builder: (_) => const MainScreen(1, '')))),
+                      MaterialPageRoute(builder: (_) => const MainScreen(1, '')))),
               _item(context, Icons.receipt_long_outlined, 'Redeem History', s,
                   () => Navigator.push(context,
-                      MaterialPageRoute(
-                          builder: (_) => const MainScreen(3, '')))),
+                      MaterialPageRoute(builder: (_) => const MainScreen(3, '')))),
               SizedBox(height: 4 * s),
               _section('MORE', s),
               _item(context, Icons.description_outlined, 'Terms & Conditions', s,
@@ -122,7 +114,7 @@ class _SideBarContentState extends State<_SideBarContent> {
   Widget _profile(BuildContext context, double s) {
     final avatarSize = 56 * s;
     return Container(
-      color: AppTheme.black,
+      color: AppTheme.black2,
       padding: EdgeInsets.fromLTRB(
           20 * s, MediaQuery.of(context).padding.top + 24 * s, 20 * s, 20 * s),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -133,9 +125,8 @@ class _SideBarContentState extends State<_SideBarContent> {
             width: avatarSize, height: avatarSize,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: AppTheme.black3,
-              border: Border.all(
-                  color: AppTheme.orange.withOpacity(0.4), width: 2),
+              color: AppTheme.black4,
+              border: Border.all(color: AppTheme.orange.withOpacity(0.4), width: 2),
             ),
             child: ClipOval(
               child: _photo.isNotEmpty && _photo != 'null'
@@ -149,22 +140,14 @@ class _SideBarContentState extends State<_SideBarContent> {
         ),
         SizedBox(height: 12 * s),
         Text(_name,
-            style: TextStyle(
-                fontSize: 17 * s,
-                fontWeight: FontWeight.w700,
-                color: AppTheme.white),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis),
+            style: TextStyle(fontSize: 17 * s, fontWeight: FontWeight.w700, color: AppTheme.white),
+            maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 2 * s),
         Text(_phone.isNotEmpty ? '+91 $_phone' : 'Colour Master Member',
-            style: TextStyle(
-                fontSize: 13 * s,
-                color: AppTheme.white.withOpacity(0.35),
-                fontWeight: FontWeight.w400),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis),
+            style: TextStyle(fontSize: 13 * s, color: AppTheme.white30, fontWeight: FontWeight.w400),
+            maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 16 * s),
-        Container(height: 1, color: AppTheme.black5.withOpacity(0.6)),
+        Container(height: 1, color: AppTheme.black5),
       ]),
     );
   }
@@ -180,7 +163,7 @@ Widget _section(String label, double s) {
         style: TextStyle(
             fontSize: 10 * s,
             fontWeight: FontWeight.w700,
-            color: AppTheme.white.withOpacity(0.2),
+            color: AppTheme.white30,
             letterSpacing: 1.2)),
   );
 }
@@ -189,7 +172,7 @@ Widget _divider(double s) {
   return Container(
     height: 1,
     margin: EdgeInsets.symmetric(horizontal: 20 * s, vertical: 4 * s),
-    color: AppTheme.black5.withOpacity(0.5),
+    color: AppTheme.black5,
   );
 }
 
@@ -202,19 +185,16 @@ Widget _item(
   bool destructive = false,
 }) {
   final textColor = destructive ? AppTheme.red : AppTheme.white;
-  final iconColor = destructive
-      ? AppTheme.red.withOpacity(0.8)
-      : AppTheme.white.withOpacity(0.45);
+  final iconColor = destructive ? AppTheme.red.withOpacity(0.8) : AppTheme.white60;
 
   return Material(
     color: Colors.transparent,
     child: InkWell(
       onTap: onTap,
-      splashColor: AppTheme.orange.withOpacity(0.04),
-      highlightColor: AppTheme.orange.withOpacity(0.03),
+      splashColor: AppTheme.orange.withOpacity(0.06),
+      highlightColor: AppTheme.orange.withOpacity(0.04),
       child: Padding(
-        padding: EdgeInsets.symmetric(
-            horizontal: 20 * s, vertical: 12 * s),
+        padding: EdgeInsets.symmetric(horizontal: 20 * s, vertical: 12 * s),
         child: Row(children: [
           Icon(icon, size: 19 * s, color: iconColor),
           SizedBox(width: 16 * s),
@@ -224,8 +204,7 @@ Widget _item(
                     fontSize: 15 * s,
                     fontWeight: FontWeight.w500,
                     color: textColor),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis),
+                maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ]),
       ),

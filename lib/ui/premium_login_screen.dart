@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'package:colourmaster/ui/widget/premium_buttons.dart';
 import 'package:colourmaster/utils/premium_theme.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -25,19 +24,26 @@ class _State extends State<PremiumLoginScreen> {
   void initState() {
     super.initState();
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-      statusBarIconBrightness: Brightness.light,
+      statusBarIconBrightness: Brightness.dark,
       statusBarColor: Colors.transparent,
-      systemNavigationBarColor: AppTheme.black,
+      systemNavigationBarColor: Color(0xFFF5F5F0),
     ));
-    _mobile.addListener(() => setState(() {}));
+    _mobile.addListener(_onChanged);
   }
 
+  void _onChanged() { if (mounted) setState(() {}); }
+
   @override
-  void dispose() { _mobile.dispose(); super.dispose(); }
+  void dispose() {
+    _mobile.removeListener(_onChanged);
+    _mobile.dispose();
+    super.dispose();
+  }
 
   void _submit(UserProvider p) {
     if (_formKey.currentState!.validate()) {
       check().then((ok) async {
+        if (!mounted) return;
         if (ok) {
           FocusManager.instance.primaryFocus?.unfocus();
           await p.loginUser(_mobile.text.trim(), context);
@@ -50,166 +56,189 @@ class _State extends State<PremiumLoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final sw = MediaQuery.of(context).size.width;
+    final sh = MediaQuery.of(context).size.height;
+    final s  = (sw / 390).clamp(0.8, 1.3);
+
     return UpgradeAlert(
       barrierDismissible: false,
       dialogStyle: !kIsWeb
           ? (Platform.isIOS ? UpgradeDialogStyle.cupertino : UpgradeDialogStyle.material)
           : UpgradeDialogStyle.material,
       child: Scaffold(
-        resizeToAvoidBottomInset: true,
+        resizeToAvoidBottomInset: false,
         backgroundColor: AppTheme.black,
         body: Consumer<UserProvider>(
-          builder: (ctx, provider, _) => Column(
-            children: [
-              // ── Top: brand — fills all space above the sheet ──────────
-              Expanded(
-                child: SafeArea(
-                  bottom: false,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 28),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Image.asset('assets/images/logo.png',
-                            width: 90, height: 90, fit: BoxFit.contain),
-                        const SizedBox(height: 16),
-                        const Text('Colour Master',
-                            style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w700,
-                                color: AppTheme.white,
-                                letterSpacing: -0.3)),
-                        const SizedBox(height: 4),
-                        Text('Rewards & Loyalty',
-                            style: TextStyle(
-                                fontSize: 13,
-                                color: AppTheme.white.withOpacity(0.3),
-                                fontWeight: FontWeight.w400)),
-                      ],
-                    ),
-                  ),
+          builder: (ctx, provider, _) => SafeArea(
+            child: SingleChildScrollView(
+              reverse: true, // scrolls up when keyboard opens
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: sh - MediaQuery.of(context).padding.top - MediaQuery.of(context).padding.bottom,
                 ),
-              ),
+                child: IntrinsicHeight(
+                  child: Column(children: [
 
-              // ── Bottom: form sheet ────────────────────────────────────
-              Container(
-                decoration: const BoxDecoration(
-                  color: AppTheme.black2,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                  border: Border(top: BorderSide(color: AppTheme.black5, width: 1)),
-                ),
-                child: SafeArea(
-                  top: false,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Drag handle
-                          Center(
-                            child: Container(
-                              width: 32, height: 3,
+                    // ── Brand area ────────────────────────────────────
+                    Expanded(
+                      child: Center(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 20 * s),
+                          child: Column(mainAxisSize: MainAxisSize.min, children: [
+                            Container(
+                              width: 80 * s, height: 80 * s,
+                              decoration: BoxDecoration(
+                                color: AppTheme.black2,
+                                borderRadius: BorderRadius.circular(22 * s),
+                                border: Border.all(color: AppTheme.black5),
+                              ),
+                              padding: EdgeInsets.all(16 * s),
+                              child: Image.asset('assets/images/logo.png', fit: BoxFit.contain),
+                            ),
+                            SizedBox(height: 14 * s),
+                            Text('Colour Master',
+                                style: TextStyle(fontSize: 22 * s,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppTheme.white,
+                                    letterSpacing: -0.3)),
+                            SizedBox(height: 4 * s),
+                            Text('Rewards & Loyalty',
+                                style: TextStyle(fontSize: 13 * s,
+                                    color: AppTheme.white30,
+                                    fontWeight: FontWeight.w400)),
+                          ]),
+                        ),
+                      ),
+                    ),
+
+                    // ── Form sheet ────────────────────────────────────
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppTheme.black2,
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(28 * s)),
+                        border: const Border(top: BorderSide(color: AppTheme.black5)),
+                      ),
+                      padding: EdgeInsets.fromLTRB(24 * s, 24 * s, 24 * s,
+                          MediaQuery.of(context).viewInsets.bottom + 28 * s),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Center(child: Container(
+                              width: 36 * s, height: 4 * s,
                               decoration: BoxDecoration(
                                   color: AppTheme.black5,
                                   borderRadius: BorderRadius.circular(2)),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
+                            )),
+                            SizedBox(height: 22 * s),
 
-                          const Text('Sign in',
-                              style: TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppTheme.white)),
-                          const SizedBox(height: 20),
+                            Text('Sign in',
+                                style: TextStyle(fontSize: 22 * s,
+                                    fontWeight: FontWeight.w700, color: AppTheme.white)),
+                            SizedBox(height: 6 * s),
+                            Text('Enter your mobile number to continue',
+                                style: TextStyle(fontSize: 13 * s, color: AppTheme.white30)),
+                            SizedBox(height: 22 * s),
 
-                          // Phone field
-                          TextFormField(
-                            controller: _mobile,
-                            keyboardType: TextInputType.phone,
-                            maxLength: 10,
-                            textInputAction: TextInputAction.done,
-                            onFieldSubmitted: (_) => _submit(provider),
-                            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                            style: const TextStyle(
-                                fontSize: 16,
-                                color: AppTheme.white,
-                                fontWeight: FontWeight.w500,
-                                letterSpacing: 1.5),
-                            decoration: InputDecoration(
-                              counterText: '',
-                              hintText: 'Mobile number',
-                              hintStyle: TextStyle(
-                                  fontSize: 15,
-                                  color: AppTheme.white.withOpacity(0.2),
-                                  letterSpacing: 0,
-                                  fontWeight: FontWeight.w400),
-                              prefixIcon: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 14, vertical: 14),
-                                child: Text('+91',
-                                    style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppTheme.orange)),
+                            // Phone field
+                            Container(
+                              decoration: BoxDecoration(
+                                color: AppTheme.black3,
+                                borderRadius: BorderRadius.circular(16 * s),
+                                border: Border.all(color: AppTheme.black5),
                               ),
-                              prefixIconConstraints: const BoxConstraints(),
-                              suffixIcon: _mobile.text.isNotEmpty
-                                  ? GestureDetector(
-                                      onTap: () => _mobile.clear(),
-                                      child: const Padding(
-                                        padding: EdgeInsets.all(12),
-                                        child: Icon(Icons.close_rounded, size: 16, color: Color(0x4DFFFFFF)),
-                                      ),
-                                    )
-                                  : null,
+                              child: Row(children: [
+                                Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 16 * s),
+                                  child: Text('+91',
+                                      style: TextStyle(fontSize: 15 * s,
+                                          fontWeight: FontWeight.w700, color: AppTheme.orange)),
+                                ),
+                                Container(width: 1, height: 24 * s, color: AppTheme.black5),
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: _mobile,
+                                    keyboardType: TextInputType.phone,
+                                    maxLength: 10,
+                                    textInputAction: TextInputAction.done,
+                                    onFieldSubmitted: (_) => _submit(provider),
+                                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                    style: TextStyle(fontSize: 16 * s,
+                                        color: AppTheme.white, fontWeight: FontWeight.w500,
+                                        letterSpacing: 1.5),
+                                    decoration: InputDecoration(
+                                      counterText: '',
+                                      hintText: 'Mobile number',
+                                      hintStyle: TextStyle(fontSize: 15 * s,
+                                          color: AppTheme.white30, letterSpacing: 0,
+                                          fontWeight: FontWeight.w400),
+                                      border: InputBorder.none,
+                                      enabledBorder: InputBorder.none,
+                                      focusedBorder: InputBorder.none,
+                                      contentPadding: EdgeInsets.symmetric(
+                                          horizontal: 14 * s, vertical: 16 * s),
+                                      suffixIcon: _mobile.text.isNotEmpty
+                                          ? GestureDetector(
+                                              onTap: () => _mobile.clear(),
+                                              child: Icon(Icons.close_rounded,
+                                                  size: 16 * s, color: AppTheme.white30),
+                                            )
+                                          : null,
+                                    ),
+                                    validator: (v) {
+                                      if (v == null || v.isEmpty) return 'Required';
+                                      if (v.length < 10) return 'Enter a valid 10-digit number';
+                                      return null;
+                                    },
+                                  ),
+                                ),
+                              ]),
                             ),
-                            validator: (v) {
-                              if (v == null || v.isEmpty) return 'Required';
-                              if (v.length < 10) return 'Enter a valid 10-digit number';
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 16),
+                            SizedBox(height: 16 * s),
 
-                          PremiumButton(
-                            text: 'Continue',
-                            isLoading: provider.isLoading,
-                            width: double.infinity,
-                            height: 56,
-                            onPressed: () => _submit(provider),
-                          ),
-                          const SizedBox(height: 20),
+                            // Continue button
+                            GestureDetector(
+                              onTap: provider.isLoading ? null : () => _submit(provider),
+                              child: Container(
+                                width: double.infinity,
+                                height: 54 * s,
+                                decoration: BoxDecoration(
+                                  color: AppTheme.orange,
+                                  borderRadius: BorderRadius.circular(16 * s),
+                                ),
+                                alignment: Alignment.center,
+                                child: provider.isLoading
+                                    ? SizedBox(width: 20 * s, height: 20 * s,
+                                        child: const CircularProgressIndicator(
+                                            strokeWidth: 2, color: Colors.white))
+                                    : Text('Continue',
+                                        style: TextStyle(fontSize: 15 * s,
+                                            fontWeight: FontWeight.w700, color: Colors.white)),
+                              ),
+                            ),
+                            SizedBox(height: 20 * s),
 
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text("New here?  ",
-                                  style: TextStyle(
-                                      fontSize: 13,
-                                      color: AppTheme.white.withOpacity(0.35))),
+                            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                              Text('New here?  ',
+                                  style: TextStyle(fontSize: 13 * s, color: AppTheme.white30)),
                               GestureDetector(
                                 onTap: () => Navigator.push(ctx,
-                                    MaterialPageRoute(
-                                        builder: (_) => const PremiumRegisterScreen())),
-                                child: const Text('Create account',
-                                    style: TextStyle(
-                                        fontSize: 13,
-                                        color: AppTheme.orange,
-                                        fontWeight: FontWeight.w600)),
+                                    MaterialPageRoute(builder: (_) => const PremiumRegisterScreen())),
+                                child: Text('Create account',
+                                    style: TextStyle(fontSize: 13 * s,
+                                        color: AppTheme.orange, fontWeight: FontWeight.w600)),
                               ),
-                            ],
-                          ),
-                        ],
+                            ]),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
+                  ]),
                 ),
               ),
-            ],
+            ),
           ),
         ),
       ),

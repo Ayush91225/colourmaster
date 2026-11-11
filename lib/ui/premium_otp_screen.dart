@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:colourmaster/ui/widget/premium_buttons.dart' as btn;
 import 'package:colourmaster/utils/premium_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -19,9 +18,8 @@ class PremiumOTPScreen extends StatefulWidget {
 }
 
 class _State extends State<PremiumOTPScreen> {
-  final _pin     = TextEditingController();
-  final _focus   = FocusNode();
-  final _formKey = GlobalKey<FormState>();
+  final _pin   = TextEditingController();
+  final _focus = FocusNode();
   bool _canResend = false;
   int  _seconds   = 30;
   Timer? _timer;
@@ -30,16 +28,18 @@ class _State extends State<PremiumOTPScreen> {
   void initState() {
     super.initState();
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-      statusBarIconBrightness: Brightness.light,
+      statusBarIconBrightness: Brightness.dark,
       statusBarColor: Colors.transparent,
-      systemNavigationBarColor: AppTheme.black,
+      systemNavigationBarColor: Color(0xFFF5F5F0),
     ));
     _startTimer();
   }
 
   void _startTimer() {
     _timer?.cancel();
+    setState(() { _seconds = 30; _canResend = false; });
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) { _timer?.cancel(); return; }
       if (_seconds > 0) {
         setState(() => _seconds--);
       } else {
@@ -59,28 +59,27 @@ class _State extends State<PremiumOTPScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Pin box themes
+    final sw = MediaQuery.of(context).size.width;
+    final s  = (sw / 390).clamp(0.8, 1.3);
+
     final base = PinTheme(
-      width: 64, height: 64,
-      textStyle: const TextStyle(
-          fontSize: 26, fontWeight: FontWeight.w700, color: AppTheme.white),
+      width: 64 * s, height: 64 * s,
+      textStyle: TextStyle(fontSize: 24 * s, fontWeight: FontWeight.w700, color: AppTheme.white),
       decoration: BoxDecoration(
-        color: AppTheme.black4,
-        borderRadius: BorderRadius.circular(14),
+        color: AppTheme.black2,
+        borderRadius: BorderRadius.circular(16 * s),
         border: Border.all(color: AppTheme.black5, width: 1.5),
       ),
     );
     final focused = base.copyWith(
       decoration: base.decoration?.copyWith(
-        border: Border.all(color: AppTheme.orange, width: 1.5),
-        boxShadow: [BoxShadow(
-            color: AppTheme.orange.withOpacity(0.2), blurRadius: 12)],
+        border: Border.all(color: AppTheme.orange, width: 2),
       ),
     );
     final submitted = base.copyWith(
       decoration: base.decoration?.copyWith(
         color: AppTheme.orange.withOpacity(0.08),
-        border: Border.all(color: AppTheme.orange.withOpacity(0.4)),
+        border: Border.all(color: AppTheme.orange.withOpacity(0.5), width: 1.5),
       ),
     );
 
@@ -88,170 +87,131 @@ class _State extends State<PremiumOTPScreen> {
       resizeToAvoidBottomInset: true,
       backgroundColor: AppTheme.black,
       body: Consumer<UserProvider>(
-        builder: (_, provider, __) => Column(
-          children: [
-            // ── Brand / info top ─────────────────────────────────────
-            Expanded(
-              child: SafeArea(
-                bottom: false,
-                child: Stack(
-                  children: [
-                    // Back button — always top-left
-                    Positioned(
-                      top: 16, left: 24,
-                      child: GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: Container(
-                          width: 36, height: 36,
-                          decoration: BoxDecoration(
-                            color: AppTheme.black3,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: AppTheme.black5),
-                          ),
-                          child: const Icon(Icons.arrow_back_ios_rounded,
-                              color: AppTheme.white, size: 16),
-                        ),
-                      ),
+        builder: (_, provider, __) => SafeArea(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.symmetric(horizontal: 24 * s),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(height: 16 * s),
+
+                // Back button
+                GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    width: 40 * s, height: 40 * s,
+                    decoration: BoxDecoration(
+                      color: AppTheme.black2,
+                      borderRadius: BorderRadius.circular(12 * s),
+                      border: Border.all(color: AppTheme.black5),
                     ),
-
-                    // Icon + title — centered in the full top area
-                    Center(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Verify Mobile',
-                                style: TextStyle(
-                                    fontSize: 26,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppTheme.white)),
-                            const SizedBox(height: 6),
-                            RichText(
-                              text: TextSpan(
-                                style: TextStyle(
-                                    fontSize: 14,
-                                    color: AppTheme.white.withOpacity(0.4)),
-                                children: [
-                                  const TextSpan(text: 'Code sent to '),
-                                  TextSpan(
-                                    text: '+91 ${widget.userMobile}',
-                                    style: const TextStyle(
-                                        color: AppTheme.orange,
-                                        fontWeight: FontWeight.w600)),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // ── Form sheet — keyboard pushes this up ───────────────────
-            Container(
-              decoration: const BoxDecoration(
-                color: AppTheme.black2,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                border: Border(top: BorderSide(color: AppTheme.black5)),
-              ),
-              child: SafeArea(
-                top: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 28),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        // Handle
-                        Container(
-                          width: 32, height: 3,
-                          decoration: BoxDecoration(
-                              color: AppTheme.black5,
-                              borderRadius: BorderRadius.circular(2)),
-                        ),
-                        const SizedBox(height: 28),
-
-                        // PIN boxes
-                        Pinput(
-                          length: 4,
-                          controller: _pin,
-                          focusNode: _focus,
-                          autofocus: true,
-                          defaultPinTheme: base,
-                          focusedPinTheme: focused,
-                          submittedPinTheme: submitted,
-                          hapticFeedbackType: HapticFeedbackType.lightImpact,
-                          separatorBuilder: (_) => const SizedBox(width: 12),
-                          onCompleted: (_) => _verify(provider),
-                          onChanged: (_) => setState(() {}),
-                        ),
-                        const SizedBox(height: 10),
-                        Text('Enter the 4-digit code',
-                            style: TextStyle(
-                                fontSize: 12,
-                                color: AppTheme.white.withOpacity(0.3))),
-                        const SizedBox(height: 28),
-
-                        // Verify button
-                        btn.PremiumButton(
-                          text: 'Verify',
-                          isLoading: provider.isLoading,
-                          width: double.infinity,
-                          height: 56,
-                          onPressed: _pin.text.length == 4
-                              ? () => _verify(provider)
-                              : null,
-                        ),
-                        const SizedBox(height: 20),
-
-                        // Resend timer
-                        GestureDetector(
-                          onTap: _canResend ? _resend : null,
-                          child: _canResend
-                              ? const Text('Resend Code',
-                                  style: TextStyle(
-                                      fontSize: 14,
-                                      color: AppTheme.orange,
-                                      fontWeight: FontWeight.w600))
-                              : RichText(
-                                  text: TextSpan(children: [
-                                    TextSpan(
-                                        text: 'Resend code in ',
-                                        style: TextStyle(
-                                            fontSize: 13,
-                                            color: AppTheme.white
-                                                .withOpacity(0.3))),
-                                    TextSpan(
-                                        text: '${_seconds}s',
-                                        style: const TextStyle(
-                                            fontSize: 13,
-                                            color: AppTheme.orange,
-                                            fontWeight: FontWeight.w600)),
-                                  ]),
-                                ),
-                        ),
-                      ],
-                    ),
+                    child: Icon(Icons.arrow_back_ios_rounded,
+                        color: AppTheme.white, size: 16 * s),
                   ),
                 ),
-              ),
+                SizedBox(height: 32 * s),
+
+                Text('Verify Mobile',
+                    style: TextStyle(fontSize: 26 * s,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.white,
+                        letterSpacing: -0.3)),
+                SizedBox(height: 6 * s),
+                RichText(
+                  text: TextSpan(
+                    style: TextStyle(fontSize: 14 * s, color: AppTheme.white30),
+                    children: [
+                      const TextSpan(text: 'Code sent to '),
+                      TextSpan(
+                        text: '+91 ${widget.userMobile}',
+                        style: TextStyle(color: AppTheme.orange,
+                            fontWeight: FontWeight.w600, fontSize: 14 * s)),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 40 * s),
+
+                // PIN boxes
+                Pinput(
+                  length: 4,
+                  controller: _pin,
+                  focusNode: _focus,
+                  autofocus: true,
+                  defaultPinTheme: base,
+                  focusedPinTheme: focused,
+                  submittedPinTheme: submitted,
+                  hapticFeedbackType: HapticFeedbackType.lightImpact,
+                  separatorBuilder: (_) => SizedBox(width: 12 * s),
+                  onCompleted: (_) => _verify(provider),
+                  onChanged: (_) => setState(() {}),
+                ),
+                SizedBox(height: 8 * s),
+                Text('Enter the 4-digit OTP',
+                    style: TextStyle(fontSize: 12 * s, color: AppTheme.white30)),
+                SizedBox(height: 32 * s),
+
+                // Verify button
+                GestureDetector(
+                  onTap: (provider.isLoading || _pin.text.length != 4)
+                      ? null
+                      : () => _verify(provider),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: double.infinity,
+                    height: 54 * s,
+                    decoration: BoxDecoration(
+                      color: _pin.text.length == 4 ? AppTheme.orange : AppTheme.black4,
+                      borderRadius: BorderRadius.circular(16 * s),
+                    ),
+                    alignment: Alignment.center,
+                    child: provider.isLoading
+                        ? SizedBox(width: 20 * s, height: 20 * s,
+                            child: const CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : Text('Verify OTP',
+                            style: TextStyle(
+                                fontSize: 15 * s,
+                                fontWeight: FontWeight.w700,
+                                color: _pin.text.length == 4
+                                    ? Colors.white
+                                    : AppTheme.white30)),
+                  ),
+                ),
+                SizedBox(height: 20 * s),
+
+                // Resend
+                Center(
+                  child: GestureDetector(
+                    onTap: _canResend ? _resend : null,
+                    child: _canResend
+                        ? Text('Resend OTP',
+                            style: TextStyle(fontSize: 14 * s,
+                                color: AppTheme.orange, fontWeight: FontWeight.w600))
+                        : RichText(
+                            text: TextSpan(children: [
+                              TextSpan(text: 'Resend code in ',
+                                  style: TextStyle(fontSize: 13 * s, color: AppTheme.white30)),
+                              TextSpan(text: '${_seconds}s',
+                                  style: TextStyle(fontSize: 13 * s,
+                                      color: AppTheme.orange, fontWeight: FontWeight.w600)),
+                            ]),
+                          ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
   void _verify(UserProvider provider) async {
+    if (!mounted) return;
     if (!await check()) { showWarningToast('No network connection'); return; }
     FocusManager.instance.primaryFocus?.unfocus();
     await provider.userOTPVerify(widget.userMobile, _pin.text.trim(), context);
+    if (!mounted) return;
     _pin.clear();
     _focus.requestFocus();
   }
@@ -265,7 +225,6 @@ class _State extends State<PremiumOTPScreen> {
     provider.isLoading = false;
     if (!mounted) return;
     if (res?.status == 1) {
-      setState(() { _seconds = 30; _canResend = false; });
       _startTimer();
       showSuccessToast(context, res!.message!);
     } else {

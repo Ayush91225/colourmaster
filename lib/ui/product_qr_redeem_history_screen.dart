@@ -25,10 +25,7 @@ class _State extends State<ProductQRRedeemHistoryScreen> {
   DateTime _lastEnd   = DateTime.now().subtract(const Duration(days: 1));
 
   @override
-  void initState() {
-    super.initState();
-    _init();
-  }
+  void initState() { super.initState(); _init(); }
 
   Future<void> _init() async {
     final prefs = await SharedPreferences.getInstance();
@@ -47,36 +44,42 @@ class _State extends State<ProductQRRedeemHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final sw = MediaQuery.of(context).size.width;
+    final s = (sw / 390).clamp(0.8, 1.3);
+
     return Scaffold(
       backgroundColor: AppTheme.black,
       body: Consumer<UserProvider>(
         builder: (_, p, __) => CustomScrollView(
           slivers: [
             appHeader(context: context, title: 'QR History'),
-
             SliverPadding(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.fromLTRB(16 * s, 16 * s, 16 * s, 40 * s),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
-                  if (!p.isLoading && p.transactionDataArr.isNotEmpty)
-                    _summaryCard(p.transactionDataArr),
-                  _dateFilter(p),
-                  const SizedBox(height: 16),
-                  if (p.isLoading)
+                  if (p.isLoading) ...[
+                    PremiumShimmer.card(height: 80 * s),
+                    SizedBox(height: 12 * s),
+                    PremiumShimmer.card(height: 90 * s),
+                    SizedBox(height: 16 * s),
                     ...List.generate(5, (_) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: PremiumShimmer.card(height: 88),
-                    ))
-                  else if (p.transactionDataArr.isEmpty)
-                    _empty()
-                  else ...[
-                    Text('${p.transactionDataArr.length} transactions',
-                        style: const TextStyle(fontSize: 12, color: AppTheme.textMuted,
-                            fontWeight: FontWeight.w500)),
-                    const SizedBox(height: 10),
-                    ...p.transactionDataArr.map(_txCard),
+                      padding: EdgeInsets.only(bottom: 10 * s),
+                      child: PremiumShimmer.card(height: 88 * s),
+                    )),
+                  ] else ...[
+                    if (p.transactionDataArr.isNotEmpty) _summaryCard(p.transactionDataArr, s),
+                    SizedBox(height: 12 * s),
+                    _dateFilter(p, s),
+                    SizedBox(height: 16 * s),
+                    if (p.transactionDataArr.isEmpty)
+                      _empty(s)
+                    else ...[
+                      Text('${p.transactionDataArr.length} scans',
+                          style: TextStyle(fontSize: 12 * s, color: AppTheme.white30, fontWeight: FontWeight.w500)),
+                      SizedBox(height: 10 * s),
+                      ...p.transactionDataArr.map((t) => _txCard(t, s)),
+                    ],
                   ],
-                  const SizedBox(height: 40),
                 ]),
               ),
             ),
@@ -86,44 +89,44 @@ class _State extends State<ProductQRRedeemHistoryScreen> {
     );
   }
 
-  Widget _summaryCard(List<TransactionData> list) {
-    final pts = list.fold<int>(0, (s, t) =>
-        s + (int.tryParse(t.points?.toString() ?? '0') ?? 0));
+  Widget _summaryCard(List<TransactionData> list, double s) {
+    final pts = list.fold<int>(0, (a, t) => a + (int.tryParse(t.points?.toString() ?? '0') ?? 0));
     return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+      padding: EdgeInsets.symmetric(vertical: 18 * s, horizontal: 8 * s),
       decoration: BoxDecoration(
         color: AppTheme.black2,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(20 * s),
         border: Border.all(color: AppTheme.black5),
       ),
       child: Row(children: [
-        _sum('Scans', '${list.length}', AppTheme.white),
-        _div(),
-        _sum('Total PTS', '$pts', AppTheme.orange),
+        _stat('Scans',     '${list.length}', AppTheme.white,  s),
+        _vDiv(),
+        _stat('Total PTS', '$pts',           AppTheme.orange, s),
       ]),
     );
   }
 
-  Widget _sum(String l, String v, Color c) => Expanded(child: Column(children: [
-    Text(v, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: c)),
-    const SizedBox(height: 3),
-    Text(l, style: TextStyle(fontSize: 10, color: AppTheme.white.withOpacity(0.3))),
+  Widget _stat(String l, String v, Color c, double s) => Expanded(child: Column(children: [
+    Text(v, style: TextStyle(fontSize: 20 * s, fontWeight: FontWeight.w800, color: c)),
+    SizedBox(height: 3 * s),
+    Text(l, style: TextStyle(fontSize: 10 * s, color: AppTheme.white30)),
   ]));
 
-  Widget _div() => Container(width: 1, height: 32, color: AppTheme.black5.withOpacity(0.6));
+  Widget _vDiv() => Container(width: 1, height: 32, color: AppTheme.black5);
 
-  Widget _dateFilter(UserProvider p) => Container(
-    padding: const EdgeInsets.all(14),
+  Widget _dateFilter(UserProvider p, double s) => Container(
+    padding: EdgeInsets.all(16 * s),
     decoration: BoxDecoration(
-      color: AppTheme.black2, borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: AppTheme.black5)),
+      color: AppTheme.black2,
+      borderRadius: BorderRadius.circular(20 * s),
+      border: Border.all(color: AppTheme.black5),
+    ),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
-        Icon(Icons.filter_list_rounded, size: 15, color: AppTheme.white.withOpacity(0.35)),
-        const SizedBox(width: 6),
+        Icon(Icons.calendar_month_outlined, size: 15 * s, color: AppTheme.white30),
+        SizedBox(width: 6 * s),
         Text('Filter by Date',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.white)),
+            style: TextStyle(fontSize: 13 * s, fontWeight: FontWeight.w600, color: AppTheme.white)),
         const Spacer(),
         if (_startDate.isNotEmpty || _endDate.isNotEmpty)
           GestureDetector(
@@ -131,140 +134,130 @@ class _State extends State<ProductQRRedeemHistoryScreen> {
               setState(() { _startDate = ''; _endDate = ''; _startCtrl.clear(); _endCtrl.clear(); });
               _fetch(p);
             },
-            child: const Text('Clear',
-                style: TextStyle(fontSize: 12, color: AppTheme.orange, fontWeight: FontWeight.w600)),
+            child: Text('Clear', style: TextStyle(fontSize: 12 * s, color: AppTheme.orange, fontWeight: FontWeight.w600)),
           ),
       ]),
-      const SizedBox(height: 12),
+      SizedBox(height: 12 * s),
       Row(children: [
-        Expanded(child: _datePicker('Start', _startCtrl, () => _pickStart(p))),
-        const SizedBox(width: 10),
-        Expanded(child: _datePicker('End', _endCtrl, () => _pickEnd(p))),
+        Expanded(child: _datePicker('From', _startCtrl, () => _pickStart(p), s)),
+        SizedBox(width: 10 * s),
+        Expanded(child: _datePicker('To', _endCtrl, () => _pickEnd(p), s)),
       ]),
     ]),
   );
 
-  Widget _datePicker(String label, TextEditingController ctrl, VoidCallback onTap) =>
+  Widget _datePicker(String label, TextEditingController ctrl, VoidCallback onTap, double s) =>
     Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label, style: TextStyle(fontSize: 10, color: AppTheme.white.withOpacity(0.3), fontWeight: FontWeight.w500)),
-      const SizedBox(height: 5),
+      Text(label, style: TextStyle(fontSize: 10 * s, color: AppTheme.white30, fontWeight: FontWeight.w500)),
+      SizedBox(height: 5 * s),
       GestureDetector(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: EdgeInsets.symmetric(horizontal: 12 * s, vertical: 11 * s),
           decoration: BoxDecoration(
-            color: AppTheme.black3, borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppTheme.black5)),
+            color: AppTheme.black3,
+            borderRadius: BorderRadius.circular(12 * s),
+            border: Border.all(color: AppTheme.black5),
+          ),
           child: Row(children: [
-            Expanded(child: Text(ctrl.text.isEmpty ? 'Select' : ctrl.text,
-                style: TextStyle(fontSize: 13,
-                    color: ctrl.text.isEmpty ? AppTheme.white.withOpacity(0.25) : AppTheme.white,
-                    fontWeight: FontWeight.w500))),
-            Icon(Icons.calendar_today_outlined, size: 13, color: AppTheme.white.withOpacity(0.3)),
+            Expanded(child: Text(
+              ctrl.text.isEmpty ? 'Select date' : ctrl.text,
+              style: TextStyle(fontSize: 12 * s,
+                  color: ctrl.text.isEmpty ? AppTheme.white30 : AppTheme.white,
+                  fontWeight: FontWeight.w500),
+            )),
+            Icon(Icons.calendar_today_outlined, size: 13 * s, color: AppTheme.white30),
           ]),
         ),
       ),
     ]);
 
-  Widget _txCard(TransactionData tx) {
+  Widget _txCard(TransactionData tx, double s) {
     final isCredit = tx.type == 'credit';
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
+      margin: EdgeInsets.only(bottom: 10 * s),
+      padding: EdgeInsets.all(14 * s),
       decoration: BoxDecoration(
-        color: AppTheme.black2, borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.black5)),
+        color: AppTheme.black2,
+        borderRadius: BorderRadius.circular(16 * s),
+        border: Border.all(color: AppTheme.black5),
+      ),
       child: Row(children: [
         Container(
-          width: 40, height: 40,
+          width: 42 * s, height: 42 * s,
           decoration: BoxDecoration(
-            color: AppTheme.black4,
-            borderRadius: BorderRadius.circular(10)),
-          child: Icon(Icons.qr_code_rounded, color: AppTheme.white.withOpacity(0.4), size: 18),
+            color: AppTheme.orange.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(12 * s),
+          ),
+          child: Icon(Icons.qr_code_rounded, color: AppTheme.orange, size: 18 * s),
         ),
-        const SizedBox(width: 12),
+        SizedBox(width: 12 * s),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(tx.productName ?? 'QR Redeem',
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.white)),
-          const SizedBox(height: 2),
-          Text(tx.transactionId ?? '',
-              style: TextStyle(fontSize: 12, color: AppTheme.white.withOpacity(0.35)),
-              maxLines: 1, overflow: TextOverflow.ellipsis),
-          const SizedBox(height: 2),
+              style: TextStyle(fontSize: 13 * s, fontWeight: FontWeight.w600, color: AppTheme.white)),
+          SizedBox(height: 2 * s),
+          if ((tx.transactionId ?? '').isNotEmpty)
+            Text(tx.transactionId!,
+                style: TextStyle(fontSize: 11 * s, color: AppTheme.white30),
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+          SizedBox(height: 2 * s),
           Text('${lastTransactionDate(tx.createdAt)}  ·  ${getFormattedTime(tx.createdAt)}',
-              style: TextStyle(fontSize: 11, color: AppTheme.white.withOpacity(0.25))),
+              style: TextStyle(fontSize: 11 * s, color: AppTheme.white30)),
         ])),
-        const SizedBox(width: 10),
+        SizedBox(width: 10 * s),
         Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
           Text(isCredit ? '+${tx.points}' : '-${tx.points}',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700,
-                  color: isCredit ? AppTheme.white : AppTheme.white.withOpacity(0.4))),
-          const SizedBox(height: 5),
+              style: TextStyle(fontSize: 15 * s, fontWeight: FontWeight.w700, color: AppTheme.orange)),
+          SizedBox(height: 6 * s),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            padding: EdgeInsets.symmetric(horizontal: 8 * s, vertical: 3 * s),
             decoration: BoxDecoration(
               color: AppTheme.orange.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(color: AppTheme.orange.withOpacity(0.2))),
-            child: const Text('Success',
-                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.orange)),
+              borderRadius: BorderRadius.circular(20 * s),
+              border: Border.all(color: AppTheme.orange.withOpacity(0.2)),
+            ),
+            child: Text('Success',
+                style: TextStyle(fontSize: 10 * s, fontWeight: FontWeight.w700, color: AppTheme.orange)),
           ),
         ]),
       ]),
     );
   }
 
-  Widget _empty() => Container(
-    padding: const EdgeInsets.symmetric(vertical: 48),
+  Widget _empty(double s) => Padding(
+    padding: EdgeInsets.symmetric(vertical: 60 * s),
     child: Column(children: [
       Container(
-        width: 64, height: 64,
-        decoration: BoxDecoration(
-          color: AppTheme.black3,
-          borderRadius: BorderRadius.circular(16)),
-        child: Icon(Icons.qr_code_scanner_rounded, size: 28, color: AppTheme.white.withOpacity(0.2)),
+        width: 72 * s, height: 72 * s,
+        decoration: BoxDecoration(color: AppTheme.black3, borderRadius: BorderRadius.circular(20 * s)),
+        child: Icon(Icons.qr_code_scanner_rounded, size: 32 * s, color: AppTheme.white30),
       ),
-      const SizedBox(height: 14),
-      const Text('No QR Transactions',
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppTheme.white)),
-      const SizedBox(height: 6),
+      SizedBox(height: 16 * s),
+      Text('No QR Transactions',
+          style: TextStyle(fontSize: 15 * s, fontWeight: FontWeight.w600, color: AppTheme.white)),
+      SizedBox(height: 6 * s),
       Text('Scan a QR code to earn points',
-          style: TextStyle(fontSize: 13, color: AppTheme.white.withOpacity(0.3))),
+          style: TextStyle(fontSize: 13 * s, color: AppTheme.white30)),
     ]),
   );
 
   Future<void> _pickStart(UserProvider p) async {
-    final d = await showDatePicker(
-      context: context, initialDate: _lastStart,
-      firstDate: DateTime(2020), lastDate: DateTime.now());
-    if (d != null) {
-      _lastStart = d;
-      _startDate = DateFormat('yyyy-MM-dd').format(d);
-      _startCtrl.text = DateFormat('dd/MM/yyyy').format(d);
-      _fetch(p);
-    }
+    final d = await showDatePicker(context: context, initialDate: _lastStart, firstDate: DateTime(2020), lastDate: DateTime.now());
+    if (!mounted || d == null) return;
+    _lastStart = d; _startDate = DateFormat('yyyy-MM-dd').format(d); _startCtrl.text = DateFormat('dd/MM/yyyy').format(d); _fetch(p);
   }
 
   Future<void> _pickEnd(UserProvider p) async {
-    final d = await showDatePicker(
-      context: context, initialDate: _lastEnd,
-      firstDate: DateTime(2020), lastDate: DateTime.now());
-    if (d != null) {
-      _lastEnd = d;
-      _endDate = DateFormat('yyyy-MM-dd').format(d);
-      _endCtrl.text = DateFormat('dd/MM/yyyy').format(d);
-      _fetch(p);
-    }
+    final d = await showDatePicker(context: context, initialDate: _lastEnd, firstDate: DateTime(2020), lastDate: DateTime.now());
+    if (!mounted || d == null) return;
+    _lastEnd = d; _endDate = DateFormat('yyyy-MM-dd').format(d); _endCtrl.text = DateFormat('dd/MM/yyyy').format(d); _fetch(p);
   }
 
   void _fetch(UserProvider p) {
     check().then((ok) async {
-      if (ok) {
-        p.transactionDataArr = [];
-        await p.fetchProductTransactionList(context, _token, _startDate, _endDate);
-      } else {
-        showWarningToast('No network connection');
-      }
+      if (!mounted) return;
+      if (ok) { p.transactionDataArr = []; await p.fetchProductTransactionList(context, _token, _startDate, _endDate); }
+      else showWarningToast('No network connection');
     });
   }
 }

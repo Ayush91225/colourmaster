@@ -41,7 +41,7 @@ class _State extends State<MainScreen> {
     super.initState();
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
+      statusBarIconBrightness: Brightness.dark,
     ));
     if (widget._selectedIndex != null) _index = widget._selectedIndex!;
     _screens = _buildScreens(() => _key.currentState?.openDrawer());
@@ -129,8 +129,7 @@ class _BottomBar extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppTheme.black,
         border: Border(
-            top: BorderSide(
-                color: AppTheme.white.withOpacity(0.06), width: 1)),
+            top: BorderSide(color: AppTheme.black5, width: 1)),
       ),
       child: Row(
         children: List.generate(_items.length, (i) {
@@ -191,7 +190,7 @@ class _BottomBar extends StatelessWidget {
                     size: 22,
                     color: active
                         ? AppTheme.orange
-                        : AppTheme.white.withOpacity(0.28),
+                        : AppTheme.white30,
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -203,7 +202,7 @@ class _BottomBar extends StatelessWidget {
                           : FontWeight.w400,
                       color: active
                           ? AppTheme.orange
-                          : AppTheme.white.withOpacity(0.28),
+                          : AppTheme.white30,
                     ),
                   ),
                 ],
